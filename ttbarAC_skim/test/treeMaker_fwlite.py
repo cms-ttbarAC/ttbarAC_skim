@@ -116,9 +116,9 @@ eventTree.Branch( 'METpt', METpt, 'METpt/F')
 eventTree.Branch( 'METphi', METphi, 'METphi/F')
 
 
-eventNum = array('i', [-999])
-runNum = array('i', [-999])
-lumiNum = array('i', [-999])
+eventNum = array('I', [0])
+runNum   = array('I', [0])
+lumiNum  = array('I', [0])
 eventTree.Branch( 'eventNum', eventNum, 'eventNum/i')
 eventTree.Branch( 'lumiNum', lumiNum, 'lumiNum/i')
 eventTree.Branch( 'runNum', runNum, 'runNum/i')
