@@ -313,6 +313,8 @@ for ifile in files:
 
 		if len(jets) < 1:
 			continue
+		if jets[0].pt() < 350.0:
+			continue
 	
 		for j in xrange(len(jets)):
 
@@ -332,7 +334,6 @@ for ifile in files:
 
                 	if not goodJet :
 				continue
-
 
 
 
