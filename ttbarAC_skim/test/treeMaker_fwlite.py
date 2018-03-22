@@ -1,3 +1,17 @@
+"""
+Created:        --
+Last Updated:   22 March 2018
+
+Justin Pilot
+UC Davis
+-----
+
+Convert EDM Ntuples (MiniAOD) into flat ntuples
+
+Use with batch scripts (analyze.sh)
+To test locally:
+$ python treeMaker_fwlite.py --files <name_of_file> --maxevents N --outname <output_name>
+"""
 from optparse import OptionParser
 import numpy as np
 from sklearn import svm, metrics, preprocessing
@@ -22,10 +36,20 @@ import sys, copy
 from array import array
 from DataFormats.FWLite import Events, Handle
 
-
+print "Creating output file "+options.outname
 f = ROOT.TFile(options.outname, "RECREATE")
 f.cd()
 
+
+# Setup cutflow
+cutflow = ROOT.TH1D('cutflow', 'cutflow',4,0,4)
+cutflow.GetXaxis().SetBinLabel(1,"INITIAL");
+cutflow.GetXaxis().SetBinLabel(2,"AK8_VALID");
+cutflow.GetXaxis().SetBinLabel(3,"NUM_AK8");
+cutflow.GetXaxis().SetBinLabel(4,"AK8_LEAD_PT");
+
+
+# Setup TTree
 eventTree = ROOT.TTree('eventVars', 'eventVars')
 maxObjects = 5
 vBESTprob_t = ROOT.vector('float')()
@@ -116,9 +140,9 @@ eventTree.Branch( 'METpt', METpt, 'METpt/F')
 eventTree.Branch( 'METphi', METphi, 'METphi/F')
 
 
-eventNum = array('I', [0])
-runNum   = array('I', [0])
-lumiNum  = array('I', [0])
+eventNum = array('L', [0])
+runNum   = array('L', [0])
+lumiNum  = array('L', [0])
 eventTree.Branch( 'eventNum', eventNum, 'eventNum/i')
 eventTree.Branch( 'lumiNum', lumiNum, 'lumiNum/i')
 eventTree.Branch( 'runNum', runNum, 'runNum/i')
@@ -208,20 +232,17 @@ nnLabels.append( ("BESTProducer", "m1234top", "ttbarACskim") )
 nnHandles = [ Handle("vector<float>") ] * len(nnLabels)
 
 
-
-
 filelist = options.files
-files= []
-nevents = 0
+nevents  = 0
 #s = options.files
 s = 'root://cmsxrootd.fnal.gov/' + options.files
-files.append(s)
+
+files = [s]
 print 'Added ' + s
 
-mlp = joblib.load('BEST_mlp.pkl')
+# BEST
+mlp    = joblib.load('BEST_mlp.pkl')
 scaler = joblib.load('BEST_scaler.pkl')
-
-
 
 nevents_file = 0
 for ifile in files:
@@ -230,12 +251,10 @@ for ifile in files:
 	if options.maxevents > 0 and nevents > options.maxevents :
         	break
 
-	events = Events( ifile )
-
-
+	events   = Events( ifile )
 	products = {}
 
-
+	# Loop over events
 	for event in events:
 
 		vBESTprob_t.clear()
@@ -276,10 +295,6 @@ for ifile in files:
 		vMUcharge.clear()
 		vMUlooseID.clear()
 	
-		eventNum[0] = event.eventAuxiliary().event()
-		lumiNum[0] = event.eventAuxiliary().luminosityBlock()
-		runNum[0] = event.eventAuxiliary().run()
-	
 		if options.maxevents > 0 and nevents > options.maxevents :
         		break
 		nevents += 1
@@ -287,11 +302,24 @@ for ifile in files:
 		if (nevents_file % 1000 == 0):
 			print nevents, ' Completed'
 
+                cutflow.Fill(0.5)   # "INITIAL"
+
+		try:
+			eventNum[0] = event.eventAuxiliary().event()
+		except OverflowError:
+			print " OVERFLOW ERROR AT ",nevents
+			print event.eventAuxiliary().event()
+			break
+		lumiNum[0]  = event.eventAuxiliary().luminosityBlock()
+		runNum[0]   = event.eventAuxiliary().run()
 
 		event.getByLabel(jetsLabel, jetsHandle)
 		if not jetsHandle.isValid():
 			continue
+                cutflow.Fill(1.5)   # "AK8_VALID"
+
 		jets = jetsHandle.product()
+
 		event.getByLabel(AK4jetsLabel, AK4jetsHandle)
 		AK4jets = AK4jetsHandle.product()
 		
@@ -299,31 +327,39 @@ for ifile in files:
 		event.getByLabel(electronsLabel, electronsHandle)
 		event.getByLabel(metLabel, metHandle)
 		electrons = electronsHandle.product()
-		muons = muonsHandle.product()
-		mets = metHandle.product()
+		muons     = muonsHandle.product()
 
-		METpt[0] = mets[0].pt()
+		mets      = metHandle.product()
+		METpt[0]  = mets[0].pt()
 		METphi[0] = mets[0].phi()
 
-		for i in xrange(len(nnHandles)):
-			event.getByLabel((nnLabels[i]), nnHandles[i])
-			products[nnLabels[i][1]] = nnHandles[i].product() 
+		for i,nnHandle in enumerate(nnHandles):
+			event.getByLabel(nnLabels[i], nnHandle)
+			products[nnLabels[i][1]] = nnHandle.product() 
 
-		ht_ak8 = 0.0
-
+                # Minimum requirements on AK8 jets
 		if len(jets) < 1:
 			continue
+                cutflow.Fill(2.5)   # "NUM_AK8"
+
 		if jets[0].pt() < 350.0:
 			continue
-	
-		for j in xrange(len(jets)):
+                cutflow.Fill(3.5)   # "AK8_LEAD_PT"
 
-			nhf = jets[j].neutralHadronEnergy() / jets[j].energy()
-                	nef = jets[j].neutralEmEnergy() / jets[j].energy()
-                	chf = jets[j].chargedHadronEnergy() / jets[j].energy()
-                	cef = jets[j].chargedEmEnergy() / jets[j].energy()
-                	nconstituents = jets[j].numberOfDaughters()
-                	nch = jets[j].chargedMultiplicity()
+		ht_ak8 = 0.0
+		for j,jet in enumerate(jets):
+
+                        # Minimum pT
+			if jet.pt() < 300.0:
+				continue
+
+                        # Quality cut
+			nhf = jet.neutralHadronEnergy() / jet.energy()
+                	nef = jet.neutralEmEnergy() / jet.energy()
+                	chf = jet.chargedHadronEnergy() / jet.energy()
+                	cef = jet.chargedEmEnergy() / jet.energy()
+                	nconstituents = jet.numberOfDaughters()
+                	nch = jet.chargedMultiplicity()
                 	goodJet = \
                   		nhf < 0.99 and \
                   		nef < 0.99 and \
@@ -336,27 +372,44 @@ for ifile in files:
 				continue
 
 
-
+                        # Predict BEST
 			pzOverp_top = products['sumPztop'][j] / (products['sumPtop'][j] + 0.01) 
 			pzOverp_W = products['sumPzW'][j] / (products['sumPW'][j] + 0.01) 
 			pzOverp_Z = products['sumPzZ'][j] / (products['sumPZ'][j] + 0.01)
 			pzOverp_H = products['sumPzH'][j] / (products['sumPH'][j] + 0.01)
 
-
-			nnArray = np.array( [  products['SDmass'][j], products['tau32'][j], products['tau21'][j], products['FWmoment1top'][j], products['FWmoment2top'][j], products['FWmoment3top'][j], products['FWmoment4top'][j], products['isotropytop'][j], products['aplanaritytop'][j], products['sphericitytop'][j], products['thrusttop'][j], products['FWmoment1W'][j], products['FWmoment2W'][j], products['FWmoment3W'][j], products['FWmoment4W'][j], products['isotropyW'][j], products['aplanarityW'][j], products['sphericityW'][j], products['thrustW'][j], products['FWmoment1Z'][j], products['FWmoment2Z'][j], products['FWmoment3Z'][j], products['FWmoment4Z'][j], products['isotropyZ'][j], products['aplanarityZ'][j], products['sphericityZ'][j], products['thrustZ'][j], products['FWmoment1H'][j], products['FWmoment2H'][j], products['FWmoment3H'][j], products['FWmoment4H'][j], products['isotropyH'][j], products['aplanarityH'][j], products['sphericityH'][j], products['thrustH'][j], products['bDisc'][j], products['bDisc1'][j], products['bDisc2'][j], products['q'][j], products['m12W'][j], products['m13W'][j], products['m23W'][j], products['m1234W'][j], products['m12Z'][j], products['m13Z'][j], products['m23Z'][j], products['m1234Z'][j], products['m12top'][j], products['m13top'][j], products['m23top'][j], products['m1234top'][j], products['m12H'][j], products['m13H'][j], products['m23H'][j], products['m1234H'][j], pzOverp_top, pzOverp_W, pzOverp_Z, pzOverp_H  ])
+			nnArray = np.array( [   products['SDmass'][j], products['tau32'][j], products['tau21'][j], 
+						products['FWmoment1top'][j], products['FWmoment2top'][j], products['FWmoment3top'][j], products['FWmoment4top'][j], 
+						products['isotropytop'][j], products['aplanaritytop'][j], products['sphericitytop'][j], products['thrusttop'][j], 
+						products['FWmoment1W'][j], products['FWmoment2W'][j], products['FWmoment3W'][j], products['FWmoment4W'][j], 
+						products['isotropyW'][j], products['aplanarityW'][j], products['sphericityW'][j], products['thrustW'][j], 
+						products['FWmoment1Z'][j], products['FWmoment2Z'][j], products['FWmoment3Z'][j], products['FWmoment4Z'][j], 
+						products['isotropyZ'][j], products['aplanarityZ'][j], products['sphericityZ'][j], products['thrustZ'][j], 
+						products['FWmoment1H'][j], products['FWmoment2H'][j], products['FWmoment3H'][j], products['FWmoment4H'][j], 
+						products['isotropyH'][j], products['aplanarityH'][j], products['sphericityH'][j], products['thrustH'][j], 
+						products['bDisc'][j], products['bDisc1'][j], products['bDisc2'][j], products['q'][j], products['m12W'][j], 
+						products['m13W'][j], products['m23W'][j], products['m1234W'][j], products['m12Z'][j], products['m13Z'][j], 
+						products['m23Z'][j], products['m1234Z'][j], products['m12top'][j], products['m13top'][j], products['m23top'][j], 
+						products['m1234top'][j], products['m12H'][j], products['m13H'][j], products['m23H'][j], products['m1234H'][j], 
+						pzOverp_top, pzOverp_W, pzOverp_Z, pzOverp_H  ])
 
 			if np.isnan(np.min(nnArray)):
 				continue
 
-		 	vAK8pt.push_back(jets[j].pt())
-			vAK8eta.push_back(jets[j].eta())
-			vAK8phi.push_back(jets[j].phi())
-			vAK8mass.push_back(jets[j].mass())
+			nnArray_transformed = scaler.transform( nnArray )
+			best_bin   = mlp.predict( nnArray_transformed )
+			best_probs = mlp.predict_proba( nnArray_transformed )
+
+                        # Set values
+		 	vAK8pt.push_back(jet.pt())
+			vAK8eta.push_back(jet.eta())
+			vAK8phi.push_back(jet.phi())
+			vAK8mass.push_back(jet.mass())
 			vAK8SDmass.push_back( products['SDmass'][j] )
 
-			vAK8tau1.push_back( jets[j].userFloat('NjettinessAK8:tau1') )
-			vAK8tau2.push_back( jets[j].userFloat('NjettinessAK8:tau2') )
-			vAK8tau3.push_back( jets[j].userFloat('NjettinessAK8:tau3') )
+			vAK8tau1.push_back( jet.userFloat('NjettinessAK8:tau1') )
+			vAK8tau2.push_back( jet.userFloat('NjettinessAK8:tau2') )
+			vAK8tau3.push_back( jet.userFloat('NjettinessAK8:tau3') )
 			vAK8charge.push_back(  products['q'][j] )
 		
 			vAK8bDiscSubjet1.push_back( products['bDisc1'][j] )
@@ -364,68 +417,62 @@ for ifile in files:
 			vAK8ChargeSubjet1.push_back( products['qsubjet0'][j] )
 			vAK8ChargeSubjet2.push_back( products['qsubjet1'][j] )
 
-			ht_ak8 += jets[j].pt()
-
-			nnArray_transformed = scaler.transform( nnArray )
-
-
-
-			best_bin = mlp.predict( nnArray_transformed )
-
-			best_probs = mlp.predict_proba( nnArray_transformed )
-
-
 			vBESTclass.push_back(best_bin[0])	
 			vBESTprob_t.push_back(best_probs[0][0])
 			vBESTprob_W.push_back(best_probs[0][1])
 			vBESTprob_Z.push_back(best_probs[0][2])
 			vBESTprob_H.push_back(best_probs[0][3])
 			vBESTprob_j.push_back(best_probs[0][4])
+
+			ht_ak8 += jet.pt()
 			
 		HTak8[0] = ht_ak8
-		j = 0
-		for j in xrange(len(AK4jets)):
 
 
-			vAK4pt.push_back(AK4jets[j].pt())
-			vAK4eta.push_back(AK4jets[j].eta())
-			vAK4phi.push_back(AK4jets[j].phi())
-			vAK4mass.push_back(AK4jets[j].mass())
-			vAK4bDisc.push_back(AK4jets[j].bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags"))
+                # AK4 Jets
+		for j,jet in enumerate(AK4jets):
+			vAK4pt.push_back(jet.pt())
+			vAK4eta.push_back(jet.eta())
+			vAK4phi.push_back(jet.phi())
+			vAK4mass.push_back(jet.mass())
+			vAK4bDisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags"))
 
+                # Electrons
+		for e,el in enumerate(electrons):
+			vELpt.push_back(el.pt())
+			vELeta.push_back(el.eta())
+			vELphi.push_back(el.phi())
+			vELenergy.push_back(el.energy())
+			vELcharge.push_back(el.charge())
+			vELiso.push_back( (el.trackIso() + el.caloIso()) / el.pt() )
+			vELid.push_back( el.userFloat('ElectronMVAEstimatorRun2Spring15Trig25nsV1Values') )
 
-		for e in xrange(len(electrons)):
+                # Muons
+		for m,mu in enumerate(muons):
+			vMUpt.push_back(mu.pt())
+			vMUeta.push_back(mu.eta())
+			vMUphi.push_back(mu.phi())
+			vMUenergy.push_back(mu.energy())
+			vMUcharge.push_back(mu.charge())
+			vMUlooseID.push_back(mu.isLooseMuon())
+			chPt = mu.pfIsolationR04().sumChargedHadronPt
+			nhEt = mu.pfIsolationR04().sumNeutralHadronEt
+			phEt = mu.pfIsolationR04().sumPhotonEt
+			puPt = mu.pfIsolationR04().sumPUPt
 
-			
-			vELpt.push_back(electrons[e].pt())
-			vELeta.push_back(electrons[e].eta())
-			vELphi.push_back(electrons[e].phi())
-			vELenergy.push_back(electrons[e].energy())
-			vELcharge.push_back(electrons[e].charge())
-			vELiso.push_back( (electrons[e].trackIso() + electrons[e].caloIso()) / electrons[e].pt() )
-			vELid.push_back( electrons[e].userFloat('ElectronMVAEstimatorRun2Spring15Trig25nsV1Values') )
-
-		for m in xrange(len(muons)):
-	
-			vMUpt.push_back(muons[m].pt())
-			vMUeta.push_back(muons[m].eta())
-			vMUphi.push_back(muons[m].phi())
-			vMUenergy.push_back(muons[m].energy())
-			vMUcharge.push_back(muons[m].charge())
-			vMUlooseID.push_back(muons[m].isLooseMuon())
-			chPt = muons[m].pfIsolationR04().sumChargedHadronPt
-			nhEt = muons[m].pfIsolationR04().sumNeutralHadronEt
-			phEt = muons[m].pfIsolationR04().sumPhotonEt
-			puPt = muons[m].pfIsolationR04().sumPUPt
-
-			corrCombRelIso = (chPt + max(0.0, nhEt + phEt - 0.5*puPt) ) / muons[m].pt()
+			corrCombRelIso = (chPt + max(0.0, nhEt + phEt - 0.5*puPt) ) / mu.pt()
 			vMUcorrIso.push_back(corrCombRelIso)
 
-
+                # Fill Tree
 		eventTree.Fill()
 
+	# end loop over events
+# end loop over files
 
-
+# Write and close file
 f.cd()
 f.Write()
 f.Close()
+
+
+## THE END ##
