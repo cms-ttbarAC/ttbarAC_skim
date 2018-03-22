@@ -342,7 +342,7 @@ for ifile in files:
 			continue
                 cutflow.Fill(2.5)   # "NUM_AK8"
 
-		if jets[0].pt() < 350.0:
+		if jets[0].pt() < 350.0 or products['SDmass'][0]<20.:
 			continue
                 cutflow.Fill(3.5)   # "AK8_LEAD_PT"
 
@@ -350,7 +350,7 @@ for ifile in files:
 		for j,jet in enumerate(jets):
 
                         # Minimum pT
-			if jet.pt() < 300.0:
+			if jet.pt() < 300.0 or products['SDmass'][j]<20.:
 				continue
 
                         # Quality cut
