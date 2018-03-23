@@ -43,6 +43,28 @@ process.selectedMET = cms.EDFilter('PATMETSelector',
     cut = cms.string('pt > -999.9'),
 )
 
+#process.selectedGenParticles = cms.EDFilter("CandPtrSelector",
+#    src = cms.InputTag('packedGenParticles'),
+#    cut = cms.string( 'abs(pdgId) == 6 || abs(pdgId) ==  15 || abs(pdgId) == 23 || abs(pdgId) ==  24 || abs(pdgId) == 25'),
+#    filter = cms.bool(False)
+#)
+
+process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
+    src = cms.InputTag("prunedGenParticles"),
+    select = cms.vstring(
+        'drop *',
+        'keep status == 3',
+        'keep status >= 20 && status <= 100',
+        'keep abs(pdgId) == 6 && status >= 20 && status <= 40',
+        'keep abs(pdgId) >= 1 && abs(pdgId) <= 5 && status <= 100',
+        'keep abs(pdgId) >= 11 && abs(pdgId) <= 18 && status <= 100',
+        'keep abs(pdgId) == 23 && status >= 20 && status <= 40',
+        'keep abs(pdgId) == 24 && status >= 20 && status <= 100',
+        'keep abs(pdgId) == 25 && status >= 20 && status <= 40',
+        'keep numberOfMothers() == 1 && abs(mother().pdgId()) == 6 && status >= 20 && status <= 40',
+        'keep numberOfMothers() >= 1 && abs(mother().pdgId()) == 24 && status >= 20 && status <= 100',
+    )
+)
 
 process.out = cms.OutputModule("PoolOutputModule",
                                fileName = cms.untracked.string("ana_out.root"),
@@ -68,7 +90,8 @@ process.p = cms.Path(process.BESTProducer*
 		     process.selectedMuons*
 		     process.selectedElectrons*
 		     process.selectedAK4Jets*
-		     process.selectedMET
+		     process.selectedMET*
+		     process.selectedGenParticles
 )
 
 

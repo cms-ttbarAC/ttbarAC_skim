@@ -12,7 +12,7 @@ parser = OptionParser()
 parser.add_option('--files', type='string', action='store', dest='files', help='Input Files')
 parser.add_option('--outname', type='string', action='store',default='ttbarAC_outtree.root', dest='outname',help='Name of output file')
 parser.add_option('--maxevents', type='int', action='store',default=-1,dest='maxevents',help='Number of events to run. -1 is all events')
-
+parser.add_option('--isMC', type='int', action='store', default=1, dest='isMC', help='is it MC?')
 
 (options, args) = parser.parse_args()
 argv = []
@@ -110,6 +110,21 @@ eventTree.Branch( 'MUcharge', vMUcharge)
 eventTree.Branch( 'MUlooseID', vMUlooseID)
 eventTree.Branch( 'MUcorrIso', vMUcorrIso)
 
+vGENpt = ROOT.vector('float')()
+vGENeta = ROOT.vector('float')()
+vGENphi = ROOT.vector('float')()
+vGENenergy = ROOT.vector('float')()
+vGENid = ROOT.vector('int')()
+vGENstatus = ROOT.vector('int')()
+vGENisHadTop = ROOT.vector('int')()
+eventTree.Branch( 'GENpt', vGENpt )
+eventTree.Branch( 'GENeta', vGENeta )
+eventTree.Branch( 'GENphi', vGENphi )
+eventTree.Branch( 'GENenergy', vGENenergy )
+eventTree.Branch( 'GENid', vGENid )
+eventTree.Branch( 'GENstatus', vGENstatus )
+eventTree.Branch( 'GENisHadTop', vGENisHadTop )
+
 METpt = array('f', [-999.])
 METphi = array('f', [-999.])
 eventTree.Branch( 'METpt', METpt, 'METpt/F')
@@ -135,7 +150,8 @@ electronsHandle = Handle("std::vector<pat::Electron>")
 electronsLabel = ("selectedElectrons", "", "ttbarACskim")
 metLabel = ("selectedMET", "", "ttbarACskim")
 metHandle = Handle("std::vector<pat::MET>")
-
+genPLabel = ("selectedGenParticles", "", "ttbarACskim")
+genPHandle = Handle("std::vector<reco::GenParticle>")
 
 nnLabels = []
 nnLabels.append( ("BESTProducer", "FWmoment1H", "ttbarACskim") )
@@ -275,6 +291,13 @@ for ifile in files:
 		vMUenergy.clear()
 		vMUcharge.clear()
 		vMUlooseID.clear()
+		vGENpt.clear()
+		vGENeta.clear()
+		vGENphi.clear()
+		vGENenergy.clear()
+		vGENid.clear()
+		vGENstatus.clear()
+		vGENisHadTop.clear()
 	
 		eventNum[0] = event.eventAuxiliary().event()
 		lumiNum[0] = event.eventAuxiliary().luminosityBlock()
@@ -294,6 +317,43 @@ for ifile in files:
 		jets = jetsHandle.product()
 		event.getByLabel(AK4jetsLabel, AK4jetsHandle)
 		AK4jets = AK4jetsHandle.product()
+
+		if options.isMC:
+			event.getByLabel(genPLabel, genPHandle)
+			genParticles = genPHandle.product()
+
+			for particle in genParticles:
+				if abs(particle.pdgId()) == 6 and particle.numberOfDaughters() == 2:
+					vGENpt.push_back(particle.pt())
+					vGENeta.push_back(particle.eta())
+					vGENphi.push_back(particle.phi())
+					vGENenergy.push_back(particle.energy())
+					
+					vGENid.push_back(particle.pdgId())
+					vGENstatus.push_back(particle.status())				
+		
+					daughter1 = particle.daughter(0)
+					daughter2 = particle.daughter(1)
+					if abs(daughter1.pdgId()) == 24:
+						if abs(daughter1.daughter(0).pdgId()) == 24 and daughter1.daughter(0).numberOfDaughters() > 0:
+							mode = daughter1.daughter(0).daughter(0).pdgId()	
+							if (abs(mode) < 10): vGENisHadTop.push_back(1)
+							else: vGENisHadTop.push_back(0)
+						else:
+							mode = daughter1.daughter(0).pdgId()
+							if (abs(mode) < 10): vGENisHadTop.push_back(1)
+							else: vGENisHadTop.push_back(0)
+							
+	
+					if abs(daughter2.pdgId()) == 24:
+						if abs(daughter2.daughter(0).pdgId()) == 24 and daughter2.daughter(0).numberOfDaughters() > 0:
+							mode = daughter2.daughter(0).daughter(0).pdgId()
+							if (abs(mode) < 10): vGENisHadTop.push_back(1)
+							else: vGENisHadTop.push_back(0)
+						else:
+							mode = daughter2.daughter(0).pdgId()
+							if (abs(mode) < 10): vGENisHadTop.push_back(1)
+							else: vGENisHadTop.push_back(0)
 		
 		event.getByLabel(muonsLabel, muonsHandle)
 		event.getByLabel(electronsLabel, electronsHandle)
