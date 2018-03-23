@@ -36,6 +36,29 @@ import sys, copy
 from array import array
 from DataFormats.FWLite import Events, Handle
 
+
+def ak8Quality(jet):
+	"""Quality cut on AK8 jet"""
+	energy = jet.energy()
+	nhf = jet.neutralHadronEnergy() / jet.energy()
+	nef = jet.neutralEmEnergy() / jet.energy()
+	chf = jet.chargedHadronEnergy() / jet.energy()
+	cef = jet.chargedEmEnergy() / jet.energy()
+	nconstituents = jet.numberOfDaughters()
+	nch = jet.chargedMultiplicity()
+	goodJet = \
+		nhf < 0.99 and \
+		nef < 0.99 and \
+		chf > 0.00 and \
+		cef < 0.99 and \
+		nconstituents > 1 and \
+		nch > 0
+
+	return goodJet
+
+
+
+
 print "Creating output file "+options.outname
 f = ROOT.TFile(options.outname, "RECREATE")
 f.cd()
@@ -342,7 +365,7 @@ for ifile in files:
 			continue
                 cutflow.Fill(2.5)   # "NUM_AK8"
 
-		if jets[0].pt() < 350.0 or products['SDmass'][0]<20.:
+		if jets[0].pt() < 350.0 or products['SDmass'][0]<20. or not ak8Quality(jets[0]):
 			continue
                 cutflow.Fill(3.5)   # "AK8_LEAD_PT"
 
@@ -354,20 +377,7 @@ for ifile in files:
 				continue
 
                         # Quality cut
-			nhf = jet.neutralHadronEnergy() / jet.energy()
-                	nef = jet.neutralEmEnergy() / jet.energy()
-                	chf = jet.chargedHadronEnergy() / jet.energy()
-                	cef = jet.chargedEmEnergy() / jet.energy()
-                	nconstituents = jet.numberOfDaughters()
-                	nch = jet.chargedMultiplicity()
-                	goodJet = \
-                  		nhf < 0.99 and \
-                  		nef < 0.99 and \
-                  		chf > 0.00 and \
-                  		cef < 0.99 and \
-                  		nconstituents > 1 and \
-                  		nch > 0
-
+			goodJet = ak8Quality(jet)
                 	if not goodJet :
 				continue
 
