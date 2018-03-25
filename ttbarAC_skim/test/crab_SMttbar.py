@@ -17,8 +17,8 @@ config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 10
 config.Data.publication = False
 
-config.Data.outLFNDirBase = '/store/user/lpctlbsm/pilot/'
-
+#config.Data.outLFNDirBase = '/store/user/lpctlbsm/pilot/'
+config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/edmNtuples/'
 
 config.section_("Site")
 config.Site.storageSite = 'T3_US_FNALLPC'
