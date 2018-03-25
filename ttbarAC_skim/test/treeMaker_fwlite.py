@@ -10,7 +10,7 @@ Convert EDM Ntuples (MiniAOD) into flat ntuples
 
 Use with batch scripts (analyze.sh)
 To test locally:
-$ python treeMaker_fwlite.py --files <name_of_file> --maxevents N --outname <output_name>
+$ python treeMaker_fwlite.py --files <name_of_file> --maxevents N --outname <output_name> --isMC <is_mc>
 """
 from optparse import OptionParser
 import numpy as np
@@ -20,16 +20,32 @@ import warnings
 import os
 warnings.simplefilter("ignore")
 
-
+# parse command-line arguments
 parser = OptionParser()
 
-parser.add_option('--files', type='string', action='store', dest='files', help='Input Files')
-parser.add_option('--outname', type='string', action='store',default='ttbarAC_outtree.root', dest='outname',help='Name of output file')
-parser.add_option('--maxevents', type='int', action='store',default=-1,dest='maxevents',help='Number of events to run. -1 is all events')
-parser.add_option('--isMC', type='int', action='store', default=1, dest='isMC', help='is it MC?')
+parser.add_option('--files', 
+		  type='string', action='store', 
+		  dest='files', 
+		  help='Input File')
+parser.add_option('--outname', 
+		  type='string', action='store',
+		  default='ttbarAC_outtree.root',
+		  dest='outname',
+		  help='Name of output file')
+parser.add_option('--maxevents', 
+		  type='int',    action='store',
+		  default=-1,
+		  dest='maxevents',
+		  help='Number of events to run. -1 is all events')
+parser.add_option('--isMC', 
+		  type='int',    action='store', 
+		  default=1, 
+		  dest='isMC',
+		  help='is it MC?')
 
 (options, args) = parser.parse_args()
 argv = []
+
 
 import ROOT
 import sys, copy
@@ -73,31 +89,31 @@ cutflow.GetXaxis().SetBinLabel(4,"AK8_LEAD_PT");
 
 
 # Setup TTree
-eventTree = ROOT.TTree('eventVars', 'eventVars')
-maxObjects = 5
+eventTree   = ROOT.TTree('eventVars', 'eventVars')
+
 vBESTprob_t = ROOT.vector('float')()
 vBESTprob_W = ROOT.vector('float')()
 vBESTprob_Z = ROOT.vector('float')()
 vBESTprob_H = ROOT.vector('float')()
 vBESTprob_j = ROOT.vector('float')()
-vBESTclass = ROOT.vector('float')()
+vBESTclass  = ROOT.vector('float')()
 eventTree.Branch( 'BESTProb_t', vBESTprob_t)
 eventTree.Branch( 'BESTProb_W', vBESTprob_W)
 eventTree.Branch( 'BESTProb_Z', vBESTprob_Z)
 eventTree.Branch( 'BESTProb_H', vBESTprob_H)
 eventTree.Branch( 'BESTProb_j', vBESTprob_j)
 eventTree.Branch( 'BESTclass', vBESTclass)
-vAK8pt = ROOT.vector('float')()
-vAK8eta = ROOT.vector('float')()
-vAK8phi = ROOT.vector('float')()
+vAK8pt   = ROOT.vector('float')()
+vAK8eta  = ROOT.vector('float')()
+vAK8phi  = ROOT.vector('float')()
 vAK8mass = ROOT.vector('float')()
 vAK8SDmass = ROOT.vector('float')()
 vAK8tau1 = ROOT.vector('float')()
 vAK8tau2 = ROOT.vector('float')()
 vAK8tau3 = ROOT.vector('float')()
 vAK8charge = ROOT.vector('float')()
-vAK8bDiscSubjet1 = ROOT.vector('float')()
-vAK8bDiscSubjet2 = ROOT.vector('float')()
+vAK8bDiscSubjet1  = ROOT.vector('float')()
+vAK8bDiscSubjet2  = ROOT.vector('float')()
 vAK8ChargeSubjet1 = ROOT.vector('float')()
 vAK8ChargeSubjet2 = ROOT.vector('float')()
 eventTree.Branch( 'AK8pt', vAK8pt)
@@ -117,10 +133,10 @@ eventTree.Branch( 'AK8ChargeSubjet2', vAK8ChargeSubjet2)
 HTak8 = array('f', [-999.])
 eventTree.Branch( 'HTak8', HTak8, 'HTak8/F')
 
-vAK4pt = ROOT.vector('float')()
-vAK4eta = ROOT.vector('float')()
-vAK4phi = ROOT.vector('float')()
-vAK4mass = ROOT.vector('float')()
+vAK4pt    = ROOT.vector('float')()
+vAK4eta   = ROOT.vector('float')()
+vAK4phi   = ROOT.vector('float')()
+vAK4mass  = ROOT.vector('float')()
 vAK4bDisc = ROOT.vector('float')()
 eventTree.Branch( 'AK4pt', vAK4pt)
 eventTree.Branch( 'AK4eta', vAK4eta)
@@ -128,13 +144,13 @@ eventTree.Branch( 'AK4phi', vAK4phi)
 eventTree.Branch( 'AK4mass', vAK4mass)
 eventTree.Branch( 'AK4bDisc', vAK4bDisc)
 
-vELpt = ROOT.vector('float')()
+vELpt  = ROOT.vector('float')()
 vELeta = ROOT.vector('float')()
 vELphi = ROOT.vector('float')()
 vELenergy = ROOT.vector('float')()
 vELcharge = ROOT.vector('float')()
 vELiso = ROOT.vector('float')()
-vELid = ROOT.vector('float')()
+vELid  = ROOT.vector('float')()
 eventTree.Branch( 'ELpt', vELpt)
 eventTree.Branch( 'ELeta', vELeta)
 eventTree.Branch( 'ELphi', vELphi)
@@ -142,11 +158,11 @@ eventTree.Branch( 'ELenergy', vELenergy)
 eventTree.Branch( 'ELcharge', vELcharge)
 eventTree.Branch( 'ELiso', vELiso)
 eventTree.Branch( 'ELid', vELid)
-vMUpt = ROOT.vector('float')()
+vMUpt  = ROOT.vector('float')()
 vMUeta = ROOT.vector('float')()
 vMUphi = ROOT.vector('float')()
-vMUenergy = ROOT.vector('float')()
-vMUcharge = ROOT.vector('float')()
+vMUenergy  = ROOT.vector('float')()
+vMUcharge  = ROOT.vector('float')()
 vMUlooseID = ROOT.vector('float')()
 vMUcorrIso = ROOT.vector('float')()
 eventTree.Branch( 'MUpt', vMUpt)
@@ -157,12 +173,12 @@ eventTree.Branch( 'MUcharge', vMUcharge)
 eventTree.Branch( 'MUlooseID', vMUlooseID)
 eventTree.Branch( 'MUcorrIso', vMUcorrIso)
 
-vGENpt = ROOT.vector('float')()
+vGENpt  = ROOT.vector('float')()
 vGENeta = ROOT.vector('float')()
 vGENphi = ROOT.vector('float')()
-vGENenergy = ROOT.vector('float')()
-vGENid = ROOT.vector('int')()
-vGENstatus = ROOT.vector('int')()
+vGENenergy   = ROOT.vector('float')()
+vGENid       = ROOT.vector('int')()
+vGENstatus   = ROOT.vector('int')()
 vGENisHadTop = ROOT.vector('int')()
 eventTree.Branch( 'GENpt', vGENpt )
 eventTree.Branch( 'GENeta', vGENeta )
@@ -172,7 +188,7 @@ eventTree.Branch( 'GENid', vGENid )
 eventTree.Branch( 'GENstatus', vGENstatus )
 eventTree.Branch( 'GENisHadTop', vGENisHadTop )
 
-METpt = array('f', [-999.])
+METpt  = array('f', [-999.])
 METphi = array('f', [-999.])
 eventTree.Branch( 'METpt', METpt, 'METpt/F')
 eventTree.Branch( 'METphi', METphi, 'METphi/F')
@@ -186,19 +202,19 @@ eventTree.Branch( 'lumiNum', lumiNum, 'lumiNum/i')
 eventTree.Branch( 'runNum', runNum, 'runNum/i')
 
 
-
+# Setup access to data in EDM file
 jetsHandle = Handle("std::vector<pat::Jet>")
-jetsLabel = ("BESTProducer", "savedJets", "ttbarACskim")
+jetsLabel  = ("BESTProducer", "savedJets", "ttbarACskim")
 AK4jetsHandle = Handle("std::vector<pat::Jet>")
-AK4jetsLabel = ("selectedAK4Jets", "", "ttbarACskim")
+AK4jetsLabel  = ("selectedAK4Jets", "", "ttbarACskim")
 muonsHandle = Handle("std::vector<pat::Muon>")
-muonsLabel = ("selectedMuons", "", "ttbarACskim")
+muonsLabel  = ("selectedMuons", "", "ttbarACskim")
 electronsHandle = Handle("std::vector<pat::Electron>")
-electronsLabel = ("selectedElectrons", "", "ttbarACskim")
-metLabel = ("selectedMET", "", "ttbarACskim")
+electronsLabel  = ("selectedElectrons", "", "ttbarACskim")
 metHandle = Handle("std::vector<pat::MET>")
-genPLabel = ("selectedGenParticles", "", "ttbarACskim")
+metLabel  = ("selectedMET", "", "ttbarACskim")
 genPHandle = Handle("std::vector<reco::GenParticle>")
+genPLabel  = ("selectedGenParticles", "", "ttbarACskim")
 
 nnLabels = []
 nnLabels.append( ("BESTProducer", "FWmoment1H", "ttbarACskim") )
