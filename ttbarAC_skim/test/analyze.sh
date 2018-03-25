@@ -17,7 +17,7 @@ ls
 echo ${file}
 
 
-python treeMaker_fwlite.py --files ${file}
+python treeMaker_fwlite.py --files ${file} --isMC 1
 
 
 mv ttbarAC_outtree.root ttbarAC_tree_${sample}_${process}.root
