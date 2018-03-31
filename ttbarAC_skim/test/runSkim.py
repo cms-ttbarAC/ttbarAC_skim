@@ -1,11 +1,37 @@
+"""
+Created:      --
+Last Updated: 29 March 2018
+
+Justin Pilot
+UC Davis
+
+Dan Marley
+daniel.edison.marley@cernSPAMNOT.ch
+Texas A&M University
+---
+
+Primary script for running ttbarAC_skim
+over MiniAOD samples
+
+To run:
+  cmsRun test/runSkim.py
+"""
 import FWCore.ParameterSet.Config as cms
+from FWCore.ParameterSet.VarParsing import VarParsing
+
+
+options = VarParsing('analysis')
+options.register('isMC', True,
+    VarParsing.multiplicity.singleton,
+    VarParsing.varType.bool,
+    "Simulated data sample" )
+options.parseArguments()
+
 
 process = cms.Process("ttbarACskim")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
-
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
-
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
         '/store/mc/RunIISpring16MiniAODv2/TT_TuneCUETP8M1_13TeV-powheg-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14_ext3-v1/00000/E602EB22-B93A-E611-9FAC-0025904C6564.root'
@@ -14,19 +40,30 @@ process.source = cms.Source("PoolSource",
 )
 process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 
+## BEST
 process.BESTProducer = cms.EDProducer('BESTProducer',
 	pdgIDforMatch = cms.int32(6),
 	NNtargetX = cms.int32(1),
 	NNtargetY = cms.int32(1),
 	isMC = cms.int32(1),
 	doMatch = cms.int32(0)
-
 )
 
+## PHYSICS OBJECTS
 process.selectedMuons = cms.EDFilter('PATMuonSelector',
     src = cms.InputTag('slimmedMuons'),
     cut = cms.string('pt > 40.0 && abs(eta) < 2.4')
 )
+
+### VID
+from PhysicsTools.SelectorUtils.tools.vid_id_tools import *
+switchOnVIDElectronIdProducer(process, DataFormat.MiniAOD)
+my_id_modules = ['RecoEgamma.ElectronIdentification.Identification.cutBasedElectronHLTPreselecition_Summer16_V1_cff',
+                 'RecoEgamma.ElectronIdentification.Identification.cutBasedElectronID_Summer16_80X_V1_cff',
+                 'RecoEgamma.ElectronIdentification.Identification.heepElectronID_HEEPV70_cff']
+for idmod in my_id_modules:
+    setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
+
 process.selectedElectrons = cms.EDFilter('PATElectronSelector',
     src = cms.InputTag('slimmedElectrons'),
     cut = cms.string('pt > 40.0 && abs(eta) < 2.4')
@@ -42,12 +79,7 @@ process.selectedMET = cms.EDFilter('PATMETSelector',
     cut = cms.string('pt > -999.9'),
 )
 
-#process.selectedGenParticles = cms.EDFilter("CandPtrSelector",
-#    src = cms.InputTag('packedGenParticles'),
-#    cut = cms.string( 'abs(pdgId) == 6 || abs(pdgId) ==  15 || abs(pdgId) == 23 || abs(pdgId) ==  24 || abs(pdgId) == 25'),
-#    filter = cms.bool(False)
-#)
-
+## GENERATOR PARTICLES
 process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
     src = cms.InputTag("prunedGenParticles"),
     select = cms.vstring(
@@ -65,6 +97,28 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
     )
 )
 
+
+## EVENT SELECTION
+process.selection = cms.EDFilter("eventSelection")
+
+## EVENT SAVER FLAT NTUPLE
+process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
+    isMC = cms.bool(options.isMC)
+)
+
+## PROCESS
+process.p = cms.Path(process.BESTProducer*
+     process.selectedMuons*
+     process.selectedElectrons*
+     process.selectedAK4Jets*
+     process.selectedMET*
+     process.selectedGenParticles*
+     process.selection*
+     process.tree
+)
+
+
+"""
 process.out = cms.OutputModule("PoolOutputModule",
                                fileName = cms.untracked.string("ana_out.root"),
                                SelectEvents   = cms.untracked.PSet( SelectEvents = cms.vstring('p') ),
@@ -76,21 +130,9 @@ process.out = cms.OutputModule("PoolOutputModule",
                         					      'drop *_*_*genJets*_*',
 			                                              'drop *_*_*tagInfos*_*',
 			                                              'drop *_*_*caloTowers*_*'
-								      #, 'keep *_goodPatJetsCATopTagPF_*_*'
-                     
-			                                                 #, 'keep recoPFJets_*_*_*'
                                                                       ) 
                                )
-
-
 process.outpath = cms.EndPath(process.out)
+"""
 
-process.p = cms.Path(process.BESTProducer*
-		     process.selectedMuons*
-		     process.selectedElectrons*
-		     process.selectedAK4Jets*
-		     process.selectedMET*
-		     process.selectedGenParticles
-)
-
-
+## THE END 
