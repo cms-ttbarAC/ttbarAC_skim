@@ -174,7 +174,8 @@ vMUeta = ROOT.vector('float')()
 vMUphi = ROOT.vector('float')()
 vMUenergy  = ROOT.vector('float')()
 vMUcharge  = ROOT.vector('float')()
-vMUlooseID  = ROOT.vector('float')()
+vMUlooseID = ROOT.vector('float')()
+vMUcorrIso = ROOT.vector('float')()
 eventTree.Branch( 'MUpt', vMUpt)
 eventTree.Branch( 'MUeta', vMUeta)
 eventTree.Branch( 'MUphi', vMUphi)
@@ -359,7 +360,6 @@ for ifile in files:
         vMUenergy.clear()
         vMUcharge.clear()
         vMUlooseID.clear()
-        vMUmediumID.clear()
         vGENpt.clear()
         vGENeta.clear()
         vGENphi.clear()
@@ -525,7 +525,6 @@ for ifile in files:
             vAK4bDisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags"))
 
         # Electrons
-        # cut-based ID (want tight)
         for e,el in enumerate(electrons):
             vELpt.push_back(el.pt())
             vELeta.push_back(el.eta())
@@ -536,7 +535,6 @@ for ifile in files:
             vELiso.push_back( (el.trackIso() + el.caloIso()) / el.pt() )
 
         # Muons
-        # cut-based ID (want medium)
         for m,mu in enumerate(muons):
             vMUpt.push_back(mu.pt())
             vMUeta.push_back(mu.eta())
