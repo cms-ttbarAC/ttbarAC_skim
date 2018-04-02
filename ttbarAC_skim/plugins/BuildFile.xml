@@ -14,6 +14,7 @@
 
 <use name="clhep"/>
 <use name="lwtnn/lwtnn"/>
+<use name="Analysis/CyMiniAna"/>
 <use name="boost"/>
 <use name="eigen"/>
 <use name="LHAPDF"/>

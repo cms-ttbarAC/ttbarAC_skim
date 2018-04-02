@@ -32,7 +32,7 @@ options.parseArguments()
 process = cms.Process("ttbarACskim")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 1
+process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
@@ -41,6 +41,22 @@ process.source = cms.Source("PoolSource",
 	)
 )
 process.TFileService = cms.Service("TFileService",fileName = cms.string("ttbarAC_outtree.root"))
+
+## VID Electrons
+process.load("Configuration.EventContent.EventContent_cff")
+process.load("Configuration.StandardSequences.GeometryRecoDB_cff")
+process.load('Configuration.StandardSequences.MagneticField_38T_cff')
+process.load('Configuration.StandardSequences.Services_cff')
+process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff')
+process.GlobalTag.globaltag = '80X_mcRun2_asymptotic_2016_TrancheIV_v8'
+
+from PhysicsTools.SelectorUtils.tools.vid_id_tools import *
+switchOnVIDElectronIdProducer(process, DataFormat.MiniAOD)
+my_id_modules = ['RecoEgamma.ElectronIdentification.Identification.cutBasedElectronHLTPreselecition_Summer16_V1_cff',
+                 'RecoEgamma.ElectronIdentification.Identification.cutBasedElectronID_Summer16_80X_V1_cff']
+#                 'RecoEgamma.ElectronIdentification.Identification.heepElectronID_HEEPV70_cff']
+for idmod in my_id_modules:
+    setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
 
 
 ## BEST
@@ -57,15 +73,6 @@ process.selectedMuons = cms.EDFilter('PATMuonSelector',
     src = cms.InputTag('slimmedMuons'),
     cut = cms.string('pt > 40.0 && abs(eta) < 2.4')
 )
-
-### VID Electrons
-from PhysicsTools.SelectorUtils.tools.vid_id_tools import *
-switchOnVIDElectronIdProducer(process, DataFormat.MiniAOD)
-my_id_modules = ['RecoEgamma.ElectronIdentification.Identification.cutBasedElectronHLTPreselecition_Summer16_V1_cff',
-                 'RecoEgamma.ElectronIdentification.Identification.cutBasedElectronID_Summer16_80X_V1_cff']
-#                 'RecoEgamma.ElectronIdentification.Identification.heepElectronID_HEEPV70_cff']
-for idmod in my_id_modules:
-    setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
 
 process.selectedElectrons = cms.EDFilter('PATElectronSelector',
     src = cms.InputTag('slimmedElectrons'),
@@ -103,6 +110,7 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
 
 ## EVENT SAVER FLAT NTUPLE
 ## Get the sampleName (primary dataset)
+print process.source.fileNames
 sample_name = process.source.fileNames[0]
 
 process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
@@ -121,12 +129,12 @@ process.dump=cms.EDAnalyzer('EventContentAnalyzer')
 process.p = cms.Path(
     process.BESTProducer*
     process.selectedMuons*
-    process.selectedElectrons*
+#    process.selectedElectrons*
     process.selectedAK4Jets*
     process.selectedMET*
     process.selectedGenParticles*
     process.egmGsfElectronIDSequence*
-    process.dump*
+#    process.dump*
     process.tree
 )
 

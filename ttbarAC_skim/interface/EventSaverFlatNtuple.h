@@ -90,7 +90,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     // Tokens
     edm::EDGetTokenT<std::vector<pat::Muon>> t_muons;
-    edm::EDGetTokenT<std::vector<pat::Electron>> t_electrons;
+//    edm::EDGetTokenT<std::vector<pat::Electron>> t_electrons;
+    edm::EDGetTokenT<edm::View<pat::Electron>> t_electrons;
     edm::EDGetTokenT<edm::View<pat::Electron>> t_electrons_orig;
     edm::EDGetTokenT<std::vector<pat::Jet>> t_jets;
     edm::EDGetTokenT<std::vector<pat::Jet>> t_ljets;
@@ -119,7 +120,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     // Handles
     edm::Handle<pat::MuonCollection> m_muons;
-    edm::Handle<std::vector<pat::Electron>> m_electrons;
+//    edm::Handle<std::vector<pat::Electron>> m_electrons;
+    edm::Handle<edm::View<pat::Electron>> m_electrons;
     edm::Handle<pat::JetCollection> m_jets;    // AK4
     edm::Handle<pat::JetCollection> m_ljets;   // AK8
     edm::Handle<pat::METCollection> m_met;

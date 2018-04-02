@@ -18,8 +18,8 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_sampleName(cfg.getParameter<std::string>("sampleName")),
   t_metadataFile(cfg.getParameter<std::string>("metadataFile")),
   t_muons(consumes<pat::MuonCollection>(edm::InputTag("selectedMuons", "", "ttbarACskim"))),
-  t_electrons(consumes<std::vector<pat::Electron>>(edm::InputTag("selectedElectrons", "", "ttbarACskim"))),
-  t_electrons_orig(consumes<edm::View<pat::Electron>>(edm::InputTag("slimmedElectrons"))),
+//  t_electrons(consumes<std::vector<pat::Electron>>(edm::InputTag("selectedElectrons", "", "ttbarACskim"))),
+  t_electrons(consumes<edm::View<pat::Electron>>(edm::InputTag("slimmedElectrons","",""))),
   t_jets(consumes<pat::JetCollection>(edm::InputTag("selectedAK4Jets", "", "ttbarACskim"))),
   t_ljets(consumes<pat::JetCollection>(edm::InputTag("BESTProducer", "savedJets", "ttbarACskim"))),
   t_truth_ljets(consumes<reco::GenJetCollection>(edm::InputTag("slimmedGenJetsAK8"))),
@@ -63,7 +63,6 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     m_NEvents.clear();
     if (m_isMC){
         m_mapOfSamples.clear();
-        std::cout << " Get sample weights " << std::endl;
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
     }
 
@@ -180,9 +179,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     // May not have the BEST products
     // -- https://twiki.cern.ch/twiki/bin/view/Main/CMSSWCheatSheet#Does_a_certain_product_exist_in
     try {event.getByToken( t_ljets, m_ljets );}
-    catch( cms::Exception& ex ) {std::cout << "Large-R Jets not found" << std::endl;}
+    catch( cms::Exception& ex ) {std::cout << " > Large-R Jets not found " << std::endl;}
     if (!m_ljets.isValid()) {
-        std::cout << " Product not valid: Large-R Jets (none remaining after BEST) " << std::endl;
+        std::cout << " > Product not valid: Large-R Jets " << std::endl;
         return;
     }
     m_BEST_products.clear();
@@ -200,7 +199,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         // Check jet
         bool pass = passAK8( ljet,nj,m_BEST_products.at("AK8SDmass")[nj] );
         if (!pass){
-            std::cout << " AK8 failed; pT = " << ljet.pt() << "; sdmass = " << m_BEST_products.at("AK8SDmass")[nj] << std::endl;
             nj++;
             continue;
         }
@@ -232,11 +230,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
             BEST_products["pzOverp_"+jetName] =  ( sumPz / (sumP + 0.0001) ); // not used for 'jet'
         }
 
-        std::cout << " LWTNN " << std::endl;
         std::map<std::string,double> NNresults = m_lwtnn->compute(BEST_products);
         std::vector<double> values{ NNresults["dnn_qcd"],   NNresults["dnn_top"],
                                     NNresults["dnn_higgs"], NNresults["dnn_z"], NNresults["dnn_w"] };
-        std::cout << " end LWTNN " << std::endl;
 
         unsigned int particleID(0);
         float max_value(-1.0);
@@ -247,7 +243,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
             }
         }
 
-        std::cout << " set LWTNN " << std::endl;
         m_ljet_BEST_t.push_back( NNresults.at("dnn_top") );
         m_ljet_BEST_w.push_back( NNresults.at("dnn_w") );
         m_ljet_BEST_z.push_back( NNresults.at("dnn_z") );
@@ -255,9 +250,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_BEST_j.push_back( NNresults.at("dnn_qcd") );
         m_ljet_BEST_class.push_back( particleID );
 
-        std::cout << " set subjets " << std::endl;
-        for (const auto& x : m_BEST_products)
-            std::cout << x.first << std::endl;
         m_ljet_subjet0_pt.push_back(     m_BEST_products["AK8subjet0pT"][nj]);
         m_ljet_subjet0_mass.push_back(   m_BEST_products["AK8subjet0mass"][nj]);
         m_ljet_subjet0_bdisc.push_back(  m_BEST_products["AK8subjet0bDisc"][nj] );
@@ -269,9 +261,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
         m_HTAK8+=ljet.pt();
         nj++;
-        std::cout << " next " << std::endl;
     } // end loop over AK8
-    std::cout << " END AK8 " << std::endl;
 
     if (m_ljet_pt.size()<1) return;
     m_hist_cutflow->Fill(2.5);    // AK8Jets
@@ -279,20 +269,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
 
     // Leptons
-    edm::Handle<edm::View<pat::Electron>> electrons; //Collection
-    event.getByToken( t_electrons_orig, electrons );
-    for (size_t i = 0; i < electrons->size(); ++i){   
-        const auto el = electrons->ptrAt(i);          // easier if we use ptrs for the id
-        if (el->pt()<40 || fabs(el->eta())>2.4 ) continue;
-
-        std::cout << i << ": " << el->pt() << std::endl;
-
-        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];
-        vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
-        vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
-//        vid::CutFlowResult idHEEP   = (*h_cutflow_elId_HEEP)[el];
-    }
-
     m_el_pt.clear();
     m_el_eta.clear();
     m_el_phi.clear();
@@ -305,21 +281,24 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     //m_el_ID_HEEP.clear();
 
     unsigned int i(0);
-    for (const auto& el : *m_electrons.product()){
-        std::cout << i << ": " << el.pt() << std::endl;
+    for (size_t i = 0; i < m_electrons->size(); ++i){   
+        const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
 
-        m_el_pt.push_back( el.pt() );
-        m_el_eta.push_back(el.eta() );
-        m_el_phi.push_back(el.phi() );
-        m_el_e.push_back(  el.energy() );
+        m_el_pt.push_back( el->pt() );
+        m_el_eta.push_back(el->eta() );
+        m_el_phi.push_back(el->phi() );
+        m_el_e.push_back(  el->energy() );
 
-        m_el_charge.push_back( el.charge() );
-        m_el_iso.push_back( (el.trackIso() + el.caloIso()) / el.pt() );
+        m_el_charge.push_back( el->charge() );
+        m_el_iso.push_back( (el->trackIso() + el->caloIso()) / el->pt() );
 
         // ID
-//        m_el_ID_loose.push_back( idLoose.cutFlowPassed() );
-//        m_el_ID_medium.push_back(idMedium.cutFlowPassed() );
-//        m_el_ID_tight.push_back( idTight.cutFlowPassed() );
+        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];
+        vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
+        vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
+        m_el_ID_loose.push_back( idLoose.cutFlowPassed() );
+        m_el_ID_medium.push_back(idMedium.cutFlowPassed() );
+        m_el_ID_tight.push_back( idTight.cutFlowPassed() );
 //        m_el_ID_HEEP.push_back(  idHEEP.cutFlowPassed() );
         i++;
     } // end loop over electrons
@@ -399,7 +378,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     } // end if isMC
 
     // Fill output tree
-    std::cout << " Fill tree " << std::endl;
     m_ttree->Fill();
 
     return;
@@ -434,13 +412,14 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_metadata_ttree->Branch("kfactor",        &m_kfactor,      "kfactor/F");       // float
     m_metadata_ttree->Branch("sumOfWeights",   &m_sumOfWeights, "sumOfWeights/F");  // float
 
-    // Physics Objects
-    // -- AK4 Jets
-    m_ttree->Branch("AK4pt",   &m_jet_pt);     // vector of floats
-    m_ttree->Branch("AK4eta",  &m_jet_eta);    // vector of floats
-    m_ttree->Branch("AK4phi",  &m_jet_phi);    // vector of floats
-    m_ttree->Branch("AK4mass", &m_jet_mass);   // vector of floats
-    m_ttree->Branch("AK4bDisc",&m_jet_bdisc);  // vector of floats
+    // Event information
+    //    Don't save flags/triggers (already used in MiniAOD!)
+    m_ttree->Branch("runNumber",   &m_runNumber,   "runNumber/i");      // uint
+    m_ttree->Branch("eventNumber", &m_eventNumber, "eventNumber/l");    // ulong
+    m_ttree->Branch("lumiblock",   &m_lumiblock,   "lumiblock/i");      // uint
+    m_ttree->Branch("rho",         &m_rho,         "rho/F");            // float
+    m_ttree->Branch("npv",         &m_npv,         "npv/I");            // int
+    m_ttree->Branch("true_pileup", &m_true_pileup, "true_pileup/I");    // int
 
     // -- AK8 Jets
     m_ttree->Branch("AK8pt",     &m_ljet_pt);     // vector of floats
@@ -452,21 +431,28 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8tau1",   &m_ljet_tau1);   // vector of floats
     m_ttree->Branch("AK8tau2",   &m_ljet_tau2);   // vector of floats
     m_ttree->Branch("AK8tau3",   &m_ljet_tau3);   // vector of floats
-    m_ttree->Branch("AK8PtSubjet1",     &m_ljet_subjet0_pt);     // vector of floats
-    m_ttree->Branch("AK8MassSubjet1",   &m_ljet_subjet0_mass);   // vector of floats
-    m_ttree->Branch("AK8bDiscSubjet1",  &m_ljet_subjet0_bdisc);  // vector of floats
-    m_ttree->Branch("AK8ChargeSubjet1", &m_ljet_subjet0_charge); // vector of floats
-    m_ttree->Branch("AK8PtSubjet2",     &m_ljet_subjet1_pt);     // vector of floats
-    m_ttree->Branch("AK8MassSubjet2",   &m_ljet_subjet1_mass);   // vector of floats
-    m_ttree->Branch("AK8bDiscSubjet2",  &m_ljet_subjet1_bdisc);  // vector of floats
-    m_ttree->Branch("AK8ChargeSubjet2", &m_ljet_subjet1_charge); // vector of floats
+    m_ttree->Branch("AK8PtSubjet0",     &m_ljet_subjet0_pt);     // vector of floats
+    m_ttree->Branch("AK8MassSubjet0",   &m_ljet_subjet0_mass);   // vector of floats
+    m_ttree->Branch("AK8bDiscSubjet0",  &m_ljet_subjet0_bdisc);  // vector of floats
+    m_ttree->Branch("AK8ChargeSubjet0", &m_ljet_subjet0_charge); // vector of floats
+    m_ttree->Branch("AK8PtSubjet1",     &m_ljet_subjet1_pt);     // vector of floats
+    m_ttree->Branch("AK8MassSubjet1",   &m_ljet_subjet1_mass);   // vector of floats
+    m_ttree->Branch("AK8bDiscSubjet1",  &m_ljet_subjet1_bdisc);  // vector of floats
+    m_ttree->Branch("AK8ChargeSubjet1", &m_ljet_subjet1_charge); // vector of floats
+    m_ttree->Branch("AK8BEST_t", &m_ljet_BEST_t); // vector of floats
+    m_ttree->Branch("AK8BEST_w", &m_ljet_BEST_w); // vector of floats
+    m_ttree->Branch("AK8BEST_z", &m_ljet_BEST_z); // vector of floats
+    m_ttree->Branch("AK8BEST_h", &m_ljet_BEST_h); // vector of floats
+    m_ttree->Branch("AK8BEST_j", &m_ljet_BEST_j); // vector of floats
+    m_ttree->Branch("AK8BEST_class", &m_ljet_BEST_class); // vector of floats
 
-    m_ttree->Branch("BESTProb_t", &m_ljet_BEST_t); // vector of floats
-    m_ttree->Branch("BESTProb_w", &m_ljet_BEST_w); // vector of floats
-    m_ttree->Branch("BESTProb_z", &m_ljet_BEST_z); // vector of floats
-    m_ttree->Branch("BESTProb_h", &m_ljet_BEST_h); // vector of floats
-    m_ttree->Branch("BESTProb_j", &m_ljet_BEST_j); // vector of floats
-    m_ttree->Branch("BESTProb_class", &m_ljet_BEST_class); // vector of floats
+    // Physics Objects
+    // -- AK4 Jets
+    m_ttree->Branch("AK4pt",   &m_jet_pt);     // vector of floats
+    m_ttree->Branch("AK4eta",  &m_jet_eta);    // vector of floats
+    m_ttree->Branch("AK4phi",  &m_jet_phi);    // vector of floats
+    m_ttree->Branch("AK4mass", &m_jet_mass);   // vector of floats
+    m_ttree->Branch("AK4bDisc",&m_jet_bdisc);  // vector of floats
 
     // -- Leptons (electrons & muons)
     m_ttree->Branch("ELpt",    &m_el_pt);     // vector of floats
@@ -493,15 +479,6 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("METpt",  &m_met_met, "METpt/F");  // float
     m_ttree->Branch("METphi", &m_met_phi, "METphi/F"); // float
     m_ttree->Branch("HTak8",  &m_HTAK8,   "HTak8/F");  // float
-
-    // Event information
-    //    Don't save flags/triggers (already used in MiniAOD!)
-    m_ttree->Branch("runNumber",   &m_runNumber,   "runNumber/i");      // uint
-    m_ttree->Branch("eventNumber", &m_eventNumber, "eventNumber/l");    // ulong
-    m_ttree->Branch("lumiblock",   &m_lumiblock,   "lumiblock/i");      // uint
-    m_ttree->Branch("rho",         &m_rho,         "rho/F");            // float
-    m_ttree->Branch("npv",         &m_npv,         "npv/I");            // int
-    m_ttree->Branch("true_pileup", &m_true_pileup, "true_pileup/I");    // int
 
     // Misc.
     // -- Generator-level information -- saving TOP only (30 March 2018)
