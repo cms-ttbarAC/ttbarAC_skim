@@ -11,16 +11,58 @@ Check out CMSSW release:
 cmsrel CMSSW_9_0_1
 cd CMSSW_9_0_1/src
 cmsenv
+git cms-init
 ```
 
-Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and this package:
+Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and other packages:
 ```
+# VID
+git cms-addpkg RecoEgamma/ElectronIdentification
+git cms-addpkg PhysicsTools/SelectorUtils
+# BEST 
 git clone git@github.com:justinrpilot/BESTAnalysis -b 90x_prod
+# LWTNN
+mkdir lwtnn && cd lwtnn/
+git clone https://github.com/demarley/lwtnn.git
+cd lwtnn/
+git checkout CMSSW_8_0_X-compatible
+cd ../../
+# Analysis code -- now linked with this package
+mkdir Analysis
+git clone https://github.com/cms-ttbarAC/CyMiniAna.git Analysis/CyMiniAna
+
 git clone git@github.com:cms-ttbarAC/ttbarAC_skim
+
 scram b -j8
 ```
 
-## EDM Production:
+## Ntuple Production
+
+Instructions for producing flat Ntuples with BEST tagger inputs.
+
+```
+cd ttbarAC_skim/ttbarAC_skim/test
+voms-proxy-init -voms cms
+source /cvmfs/cms.cern.ch/crab3/crab.csh
+```
+
+To submit crab jobs, the script `runSkim.py` is processed for MC using the `cmsRun` executable.
+
+First, edit `crab_*.py` with a new dataset name to reflect the sample you are processing, e.g., `crab_SMttbar.py`.  
+Make sure to the output directory is pointed to `/store/group/lpctop/edmNtuples/`.  
+If you are processing data, modify the argument `config.JobType.pyCfgParams = ['isMC=True']` to `config.JobType.pyCfgParams = ['isMC=False']`.  
+To submit the CRAB jobs, enter the command:
+```
+crab submit -c crab_*.py --dryrun
+crab proceed
+```
+You can also submit the crab jobs with only `crab submit -c crab_*.py`, where `crab_*.py` is the crab configuration file.  
+Monitor the CRAB jobs and resubmit any failed jobs.
+
+
+## Previous setup (still possible but not recommended)
+
+### EDM Production:
 
 Instructions for producing EDM Ntuples with BEST tagger inputs and then flat trees for analysis.
 
@@ -42,7 +84,7 @@ either remove `--dryrun` to submit the jobs, or enter `crab proceed` after runni
 Monitor the CRAB jobs and resubmit any failed jobs.
 
 
-## Flat Ntuple Production
+### Flat Ntuple Production
 
 After crab jobs are finished, make a text file with the filenames (starting with `/store/group/...`):
 
