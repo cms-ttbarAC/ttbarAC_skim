@@ -28,7 +28,6 @@ options.register('isMC', True,
     "Simulated data sample" )
 options.parseArguments()
 
-print options.isMC,type(options.isMC)
 
 process = cms.Process("ttbarACskim")
 
