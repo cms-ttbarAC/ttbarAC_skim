@@ -51,7 +51,6 @@ import ROOT
 import sys, copy
 from array import array
 from DataFormats.FWLite import Events, Handle
-from RecoEgamma.EgammaTools import *
 
 
 def ak8Quality(jet):
@@ -85,98 +84,6 @@ def checkTopDecay(daughter):
         mode = w_child.pdgId()
     return (abs(mode)<10)
 
-
-def effectiveArea(eta):
-    """Effective area for electron ID
-       - The following values refer to EA for cone 0.3 and fixedGridRhoFastjetAll. 
-       - They are valid for electrons only, different EA are available for muons.
-    """
-    effArea = 0.;
-    if(np.fabs(eta)>0.0 and np.fabs(eta)<=1.0): effArea = 0.1752;
-    elif(np.fabs(eta)>1.0 and np.fabs(eta)<=1.479): effArea = 0.1862;
-    elif(np.fabs(eta)>1.479 and np.fabs(eta)<=2.0): effArea = 0.1411;
-    elif(np.fabs(eta)>2.0 and np.fabs(eta)<=2.2): effArea = 0.1534;
-    elif(np.fabs(eta)>2.2 and np.fabs(eta)<=2.3): effArea = 0.1903;
-    elif(np.fabs(eta)>2.3 and np.fabs(eta)<=2.4): effArea = 0.2243;
-    elif(np.fabs(eta)>2.4 and np.fabs(eta)<=2.5): effArea = 0.2687;
-
-    return effArea;
-
-
-def passIDWP(isEB, dEtaIn, dPhiIn, full5x5, hoe, relIso, ooemoop, missHits):
-    """Check the electron values against working point thresholds
-       Isolation cut is not relative isolation -- no pT used.
-
-       Values accessed on 29 March 2018 from 
-       https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Working_points_for_2016_data_for
-    """
-    passVETO  = False
-    passLOOSE = False
-    passMED   = False
-    passTIGHT = False
-
-    dEtaIn  = np.fabs(dEtaIn)
-    dPhiIn  = np.fabs(dPhiIn)
-    ooemoop = np.fabs(ooemoop)
-
-    if(isEB):
-        passVETO  = (dEtaIn < 0.00749) and (dPhiIn < 0.228)  and (full5x5 < 0.0115)  and (hoe < 0.356)  and (relIso < 0.175)  and (ooemoop < 0.299)  and (missHits <= 2)
-        passLOOSE = (dEtaIn < 0.00477) and (dPhiIn < 0.222)  and (full5x5 < 0.011)   and (hoe < 0.298)  and (relIso < 0.0994) and (ooemoop < 0.241)  and (missHits <= 1)
-        passMED   = (dEtaIn < 0.00311) and (dPhiIn < 0.103)  and (full5x5 < 0.00998) and (hoe < 0.253)  and (relIso < 0.0695) and (ooemoop < 0.134)  and (missHits <= 1)
-        passTIGHT = (dEtaIn < 0.00308) and (dPhiIn < 0.0816) and (full5x5 < 0.00998) and (hoe < 0.0414) and (relIso < 0.0588) and (ooemoop < 0.0129) and (missHits <= 1)
-    else:
-        passVETO  = (dEtaIn < 0.00895) and (dPhiIn < 0.213)  and (full5x5 < 0.037)  and (hoe < 0.211)  and (relIso < 0.159)  and (ooemoop < 0.15)   and (missHits <= 3)
-        passLOOSE = (dEtaIn < 0.00868) and (dPhiIn < 0.213)  and (full5x5 < 0.0314) and (hoe < 0.101)  and (relIso < 0.107)  and (ooemoop < 0.14)   and (missHits <= 1)
-        passMED   = (dEtaIn < 0.00609) and (dPhiIn < 0.045)  and (full5x5 < 0.0298) and (hoe < 0.0878) and (relIso < 0.0821) and (ooemoop < 0.13)   and (missHits <= 1)
-        passTIGHT = (dEtaIn < 0.00605) and (dPhiIn < 0.0394) and (full5x5 < 0.0292) and (hoe < 0.0641) and (relIso < 0.0571) and (ooemoop < 0.0129) and (missHits <= 1)
-
-    return {'isVETO':passVETO,'isLoose':passLOOSE,'isMedium':passMED,'isTight':passTIGHT}
-
-
-def electronID(el,rho=None,conversions=None,beamspot=None):
-    """Get the ID working points for electrons
-       https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Working_points_for_2016_data_for
-       future iterations will use VID: https://twiki.cern.ch/twiki/bin/view/Main/VIDTutorial2017
-         https://github.com/monoTopHelicityWG/B2GTTbar/blob/master/test/run_B2GTTbarTreeMaker_RSG_Toolbox.py#L52-L64
-
-       using: https://github.com/cmsb2g/B2GAnaFW/blob/66ef0aa0dc5de724ececfb43f27346430c01350b/src/ElectronUserData.cc#L216
-       loose,medium,tight + barrel/endcap
-    """
-    pfIso   = el.pfIsolationVariables();
-    dEtaIn  = el.deltaEtaSuperClusterTrackAtVtx();
-    dPhiIn  = el.deltaPhiSuperClusterTrackAtVtx();
-    full5x5 = el.full5x5_sigmaIetaIeta();
-    hoe     = el.hadronicOverEm();
-    absiso  = pfIso.sumChargedHadronPt + max(0.0 , pfIso.sumNeutralHadronEt + pfIso.sumPhotonEt - 0.5 * pfIso.sumPUPt );
-    relIsoWithDBeta_ = absiso/el.pt();
-
-    if rho is not None:
-        effArea   = effectiveArea(el.eta());
-        absiso = pfIso.sumChargedHadronPt + max(0.0 , pfIso.sumNeutralHadronEt + pfIso.sumPhotonEt - rho * effArea );
-    else:
-        absiso = pfIso.sumChargedHadronPt + max(0.0 , pfIso.sumNeutralHadronEt + pfIso.sumPhotonEt - 0.5 * pfIso.sumPUPt );
-    relIso = absiso/el.pt();
-
-    ooEmooP = 0.0
-    if el.ecalEnergy() < 1e-8:
-      ooEmooP = 999
-    elif not np.isfinite(el.ecalEnergy()):
-      ooEmooP = 998
-    else:
-      ooEmooP = np.fabs(1.0/el.ecalEnergy() - el.eSuperClusterOverP()/el.ecalEnergy() )
-
-    missHits     = el.gsfTrack().hitPattern().numberOfLostHits(1)
-    if beamspot is not None and conversions is not None: 
-        hasMatchConv = ConversionTools.hasMatchedConversion(el, conversions, beamspot.position())
-    else:
-        hasMatchConv = False
-
-    if not hasMatchConv:
-        electronIDs = passIDWP(el.isEB(), dEtaIn, dPhiIn, full5x5, hoe, relIso, ooEmooP, missHits);
-    else:
-        electronIDs = {'isVETO':False,'isLoose':False,'isMedium':False,'isTight':False}
-
-    return electronIDs
 
 
 print "Creating output file "+options.outname
@@ -254,33 +161,26 @@ vELphi = ROOT.vector('float')()
 vELenergy = ROOT.vector('float')()
 vELcharge = ROOT.vector('float')()
 vELiso = ROOT.vector('float')()
-vELidLoose  = ROOT.vector('float')()
-vELidMedium = ROOT.vector('float')()
-vELidTight  = ROOT.vector('float')()
+vELid  = ROOT.vector('float')()
 eventTree.Branch( 'ELpt', vELpt)
 eventTree.Branch( 'ELeta', vELeta)
 eventTree.Branch( 'ELphi', vELphi)
 eventTree.Branch( 'ELenergy', vELenergy)
 eventTree.Branch( 'ELcharge', vELcharge)
 eventTree.Branch( 'ELiso', vELiso)
-eventTree.Branch( 'ELid', vELidLoose)
-eventTree.Branch( 'ELid', vELidMedium)
-eventTree.Branch( 'ELid', vELidTight)
+eventTree.Branch( 'ELid', vELid)
 vMUpt  = ROOT.vector('float')()
 vMUeta = ROOT.vector('float')()
 vMUphi = ROOT.vector('float')()
 vMUenergy  = ROOT.vector('float')()
 vMUcharge  = ROOT.vector('float')()
 vMUlooseID  = ROOT.vector('float')()
-vMUmediumID = ROOT.vector('float')()
-vMUcorrIso  = ROOT.vector('float')()
 eventTree.Branch( 'MUpt', vMUpt)
 eventTree.Branch( 'MUeta', vMUeta)
 eventTree.Branch( 'MUphi', vMUphi)
 eventTree.Branch( 'MUenergy', vMUenergy)
 eventTree.Branch( 'MUcharge', vMUcharge)
 eventTree.Branch( 'MUlooseID', vMUlooseID)
-eventTree.Branch( 'MUmediumID',vMUmediumID)
 eventTree.Branch( 'MUcorrIso', vMUcorrIso)
 
 vGENpt  = ROOT.vector('float')()
@@ -451,9 +351,7 @@ for ifile in files:
         vELphi.clear()
         vELenergy.clear()
         vELiso.clear()
-        vELidLoose.clear()
-        vELidMedium.clear()
-        vELidTight.clear()
+        vELid.clear()
         vELcharge.clear()
         vMUpt.clear()
         vMUeta.clear()
@@ -634,12 +532,7 @@ for ifile in files:
             vELphi.push_back(el.phi())
             vELenergy.push_back(el.energy())
             vELcharge.push_back(el.charge())
-            # ID
-            ids = electronID(el)
-            vELidLoose.push_back(ids['isLoose'])
-            vELidMedium.push_back(ids['isMedium'])
-            vELidTight.push_back(ids['isTight'])
-            # ISO
+            vELid.push_back( el.userFloat('ElectronMVAEstimatorRun2Spring15Trig25nsV1Values') )
             vELiso.push_back( (el.trackIso() + el.caloIso()) / el.pt() )
 
         # Muons
@@ -650,11 +543,7 @@ for ifile in files:
             vMUphi.push_back(mu.phi())
             vMUenergy.push_back(mu.energy())
             vMUcharge.push_back(mu.charge())
-            # ID
             vMUlooseID.push_back(mu.isLooseMuon())
-            vMUmediumID.push_back(mu.isMediumMuon())
-            #vMUtightID.push_back(mu.isTightMuon())   # requires vertex
-            # ISO
             chPt = mu.pfIsolationR04().sumChargedHadronPt
             nhEt = mu.pfIsolationR04().sumNeutralHadronEt
             phEt = mu.pfIsolationR04().sumPhotonEt

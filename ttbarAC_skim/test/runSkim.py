@@ -1,6 +1,6 @@
 """
 Created:      --
-Last Updated: 29 March 2018
+Last Updated:  2 April 2018
 
 Justin Pilot
 UC Davis
@@ -14,7 +14,7 @@ Primary script for running ttbarAC_skim
 over MiniAOD samples
 
 To run:
-  cmsRun test/runSkim.py
+  cmsRun runSkim.py
 """
 import json
 import FWCore.ParameterSet.Config as cms
@@ -28,6 +28,7 @@ options.register('isMC', True,
     "Simulated data sample" )
 options.parseArguments()
 
+print options.isMC,type(options.isMC)
 
 process = cms.Process("ttbarACskim")
 
@@ -36,8 +37,9 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        '/store/mc/RunIISpring16MiniAODv2/TT_TuneCUETP8M1_13TeV-powheg-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14_ext3-v1/00000/E602EB22-B93A-E611-9FAC-0025904C6564.root'
-#	'/store/mc/RunIISpring16MiniAODv2/ZprimeToTT_M-3000_W-30_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14-v1/70000/1A405524-3E3D-E611-B103-047D7BD6DDB2.root'
+         '/store/data/Run2016B/SingleMuon/MINIAOD/03Feb2017_ver2-v2/100000/000C6E52-8BEC-E611-B3FF-0025905C42FE.root'
+#        '/store/mc/RunIISpring16MiniAODv2/TT_TuneCUETP8M1_13TeV-powheg-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14_ext3-v1/00000/E602EB22-B93A-E611-9FAC-0025904C6564.root'
+#        '/store/mc/RunIISpring16MiniAODv2/ZprimeToTT_M-3000_W-30_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14-v1/70000/1A405524-3E3D-E611-B103-047D7BD6DDB2.root'
 	)
 )
 process.TFileService = cms.Service("TFileService",fileName = cms.string("ttbarAC_outtree.root"))
@@ -64,7 +66,7 @@ process.BESTProducer = cms.EDProducer('BESTProducer',
 	pdgIDforMatch = cms.int32(6),
 	NNtargetX = cms.int32(1),
 	NNtargetY = cms.int32(1),
-	isMC = cms.int32(1),
+	isMC = cms.int32(options.isMC),
 	doMatch = cms.int32(0)
 )
 
@@ -110,12 +112,9 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
 
 ## EVENT SAVER FLAT NTUPLE
 ## Get the sampleName (primary dataset)
-print process.source.fileNames
-sample_name = process.source.fileNames[0]
-
 process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
     isMC = cms.bool(options.isMC),
-    sampleName = cms.string(sample_name),
+    sampleName = cms.string(process.source.fileNames[0]),
     metadataFile = cms.string("metadataFile.txt"),
     elIdFullInfoMap_Loose  = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-loose"),
     elIdFullInfoMap_Medium = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-medium"),
@@ -126,18 +125,29 @@ process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
 process.dump=cms.EDAnalyzer('EventContentAnalyzer')
 
 ## PROCESS
-process.p = cms.Path(
-    process.BESTProducer*
-    process.selectedMuons*
-#    process.selectedElectrons*
-    process.selectedAK4Jets*
-    process.selectedMET*
-    process.selectedGenParticles*
-    process.egmGsfElectronIDSequence*
-#    process.dump*
-    process.tree
-)
+#  -- 'process.selectedElectrons*' removed -- need original collection to use VID
+if options.isMC:
+    process.p = cms.Path(
+        process.BESTProducer*
+        process.selectedMuons*
+        process.selectedAK4Jets*
+        process.selectedMET*
+        process.selectedGenParticles*
+        process.egmGsfElectronIDSequence*
+        process.tree
+    )
+else:
+    process.p = cms.Path(
+        process.BESTProducer*
+        process.selectedMuons*
+        process.selectedAK4Jets*
+        process.selectedMET*
+        process.egmGsfElectronIDSequence*
+        process.tree
+    )
 
+
+## THE END 
 
 """
 process.out = cms.OutputModule("PoolOutputModule",
@@ -155,5 +165,3 @@ process.out = cms.OutputModule("PoolOutputModule",
                                )
 process.outpath = cms.EndPath(process.out)
 """
-
-## THE END 
