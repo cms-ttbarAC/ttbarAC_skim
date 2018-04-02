@@ -2,7 +2,7 @@
   "defaults": {}, 
   "inputs": [
     {
-      "name": "SDmass", 
+      "name": "AK8SDmass", 
       "offset": -95.40098398709836, 
       "scale": 0.013231481869730269
     }, 
@@ -182,17 +182,17 @@
       "scale": 0.4012313937683603
     }, 
     {
-      "name": "bDisc1", 
+      "name": "AK8subjet0bDisc", 
       "offset": 0.5007209705594641, 
       "scale": 0.32925936062226274
     }, 
     {
-      "name": "bDisc2", 
+      "name": "AK8subjet0bDisc", 
       "offset": 1.1242356957855875, 
       "scale": 0.2674855045437578
     }, 
     {
-      "name": "q", 
+      "name": "AK8charge", 
       "offset": -0.01855540444369531, 
       "scale": 2.673064104144437
     }, 

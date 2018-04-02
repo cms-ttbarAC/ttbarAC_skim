@@ -32,28 +32,30 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_conversions(consumes<reco::ConversionCollection>(edm::InputTag("reducedEgamma:reducedConversions"))),
   t_elIdFullInfoMap_Loose(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Loose"))),
   t_elIdFullInfoMap_Medium(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Medium"))),
-  t_elIdFullInfoMap_Tight(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Tight"))),
-  t_elIdFullInfoMap_HEEP(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_HEEP"))){
+  t_elIdFullInfoMap_Tight(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Tight"))){
+  //t_elIdFullInfoMap_HEEP(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_HEEP"))){
     t_BEST_products.clear();
     for (const auto& name : m_BEST_variables){
-        edm::EDGetTokenT<std::vector<double>> tmp_token = consumes<std::vector<double>>(edm::InputTag("BESTProducer",name,"ttbarACskim"));
+        edm::EDGetTokenT<std::vector<float>> tmp_token = consumes<std::vector<float>>(edm::InputTag("BESTProducer",name,"ttbarACskim"));
         t_BEST_products.push_back( tmp_token );
     }
 
     // Make output TTrees
     edm::Service<TFileService> fs;
-    m_ttree = fs->make<TTree>("events","events");
+    m_ttree = fs->make<TTree>("eventVars","eventVars");
     m_metadata_ttree = fs->make<TTree>("metadata","metadata");
 
-    m_hist_cutflow = m_fs->make<TH1D>( "cutflow","cutflow",2,0,2);
+    m_hist_cutflow = fs->make<TH1D>( "cutflow","cutflow",3,0,3);
     m_hist_cutflow->GetXaxis()->SetBinLabel(1,"INITIAL");
-    m_hist_cutflow->GetXaxis()->SetBinLabel(2,"AK8Jets");
+    m_hist_cutflow->GetXaxis()->SetBinLabel(2,"PRIMARYVTX");
+    m_hist_cutflow->GetXaxis()->SetBinLabel(3,"AK8JETS");
 
     initialize_branches();
 
     // options set by config
     m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
 
+    cma::setVerboseLevel("WARNING");
     m_sampleName = t_sampleName;
     m_XSections.clear();
     m_KFactors.clear();
@@ -61,11 +63,12 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     m_NEvents.clear();
     if (m_isMC){
         m_mapOfSamples.clear();
+        std::cout << " Get sample weights " << std::endl;
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
     }
 
     // Lightweight NN interface with BEST
-    std::string dnnFile("ttbarAC_skim/ttbarAC_skim/test/BEST_mlp.json");
+    std::string dnnFile("../test/BEST_mlp.json");
     std::ifstream input_cfg( dnnFile );                     // original: "data/BEST_mlp.json"
     lwt::JSONConfig lwcfg = lwt::parse_json( input_cfg );
     m_lwtnn = new lwt::LightweightNeuralNetwork(lwcfg.inputs, lwcfg.layers, lwcfg.outputs);
@@ -93,7 +96,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_muons, m_muons );
     event.getByToken( t_jets, m_jets );
     //event.getByToken( t_truth_jets, m_truth_jets );
-    event.getByToken( t_ljets, m_ljets );
     event.getByToken( t_truth_ljets, m_truth_ljets );
     event.getByToken( t_met, m_met );
     event.getByToken( t_rho, h_rho );
@@ -106,18 +108,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_elIdFullInfoMap_Loose,  h_cutflow_elId_Loose );
     event.getByToken( t_elIdFullInfoMap_Medium, h_cutflow_elId_Medium );
     event.getByToken( t_elIdFullInfoMap_Tight,  h_cutflow_elId_Tight );
-    event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
-
-    m_BEST_products.clear();
-    for (unsigned int i=0,size=m_BEST_variables.size(); i<size; i++){
-        edm::Handle<std::vector<double>> h_tmp;
-        event.getByToken( t_BEST_products.at(i), h_tmp );
-        m_BEST_products[m_BEST_variables[i]] = *h_tmp.product();
-    }
-
+//    event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
 
     m_hist_cutflow->Fill(0.5);  // INITIAL
-
 
     // Set branch values
     m_runNumber   = event.id().run();
@@ -184,11 +177,30 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_subjet1_charge.clear();
     m_HTAK8 = 0;
 
+    // May not have the BEST products
+    // -- https://twiki.cern.ch/twiki/bin/view/Main/CMSSWCheatSheet#Does_a_certain_product_exist_in
+    try {event.getByToken( t_ljets, m_ljets );}
+    catch( cms::Exception& ex ) {std::cout << "Large-R Jets not found" << std::endl;}
+    if (!m_ljets.isValid()) {
+        std::cout << " Product not valid: Large-R Jets (none remaining after BEST) " << std::endl;
+        return;
+    }
+    m_BEST_products.clear();
+    for (unsigned int i=0,size=m_BEST_variables.size(); i<size; i++){
+        edm::Handle<std::vector<float>> h_tmp;
+        event.getByToken( t_BEST_products.at(i), h_tmp );
+
+        std::vector<float> ftmp = *h_tmp.product();
+        std::vector<double> dtmp(ftmp.begin(),ftmp.end());
+        m_BEST_products[m_BEST_variables[i]] = dtmp;
+    }
+
     unsigned int nj(0);
     for (const auto& ljet : *m_ljets.product()){
         // Check jet
         bool pass = passAK8( ljet,nj,m_BEST_products.at("AK8SDmass")[nj] );
         if (!pass){
+            std::cout << " AK8 failed; pT = " << ljet.pt() << "; sdmass = " << m_BEST_products.at("AK8SDmass")[nj] << std::endl;
             nj++;
             continue;
         }
@@ -210,12 +222,24 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         std::map<std::string,double> BEST_products;
         for (auto& x : m_BEST_products)
             BEST_products[x.first] = x.second[nj];
+
+        std::vector<std::string> jetNames = {"top","W","Z","H","jet"};
+        for (unsigned int pp=0,size=jetNames.size(); pp<size; pp++){
+            std::string jetName = jetNames[pp];
+
+            float sumPz = BEST_products["sumPz"+jetName];
+            float sumP  = BEST_products["sumP"+jetName];
+            BEST_products["pzOverp_"+jetName] =  ( sumPz / (sumP + 0.0001) ); // not used for 'jet'
+        }
+
+        std::cout << " LWTNN " << std::endl;
         std::map<std::string,double> NNresults = m_lwtnn->compute(BEST_products);
         std::vector<double> values{ NNresults["dnn_qcd"],   NNresults["dnn_top"],
                                     NNresults["dnn_higgs"], NNresults["dnn_z"], NNresults["dnn_w"] };
+        std::cout << " end LWTNN " << std::endl;
 
         unsigned int particleID(0);
-        double max_value(-1.0);
+        float max_value(-1.0);
         for (unsigned int pid=0,size=values.size();pid<size;pid++){
             if (values.at(pid) > max_value){
                 max_value  = values.at(pid);
@@ -223,6 +247,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
             }
         }
 
+        std::cout << " set LWTNN " << std::endl;
         m_ljet_BEST_t.push_back( NNresults.at("dnn_top") );
         m_ljet_BEST_w.push_back( NNresults.at("dnn_w") );
         m_ljet_BEST_z.push_back( NNresults.at("dnn_z") );
@@ -230,19 +255,23 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_BEST_j.push_back( NNresults.at("dnn_qcd") );
         m_ljet_BEST_class.push_back( particleID );
 
-        m_ljet_subjet0_pt.push_back(   m_BEST_products["AK8_subjet0_pt"][nj]);
-        m_ljet_subjet0_mass.push_back( m_BEST_products["AK8_subjet0_mass"][nj]);
-        m_ljet_subjet0_bdisc.push_back(  m_BEST_products["AK8_subjet0_bDisc"][nj] );
-        m_ljet_subjet0_charge.push_back( m_BEST_products["AK8_subjet0_charge"][nj] );
-        m_ljet_subjet1_pt.push_back(   m_BEST_products["AK8_subjet1_pt"][nj]);
-        m_ljet_subjet1_mass.push_back( m_BEST_products["AK8_subjet1_mass"][nj]);
-        m_ljet_subjet1_bdisc.push_back(  m_BEST_products["AK8_subjet1_bDisc"][nj] );
-        m_ljet_subjet1_charge.push_back( m_BEST_products["AK8_subjet1_charge"][nj] );
+        std::cout << " set subjets " << std::endl;
+        for (const auto& x : m_BEST_products)
+            std::cout << x.first << std::endl;
+        m_ljet_subjet0_pt.push_back(     m_BEST_products["AK8subjet0pT"][nj]);
+        m_ljet_subjet0_mass.push_back(   m_BEST_products["AK8subjet0mass"][nj]);
+        m_ljet_subjet0_bdisc.push_back(  m_BEST_products["AK8subjet0bDisc"][nj] );
+        m_ljet_subjet0_charge.push_back( m_BEST_products["AK8subjet0charge"][nj] );
+        m_ljet_subjet1_pt.push_back(     m_BEST_products["AK8subjet1pT"][nj]);
+        m_ljet_subjet1_mass.push_back(   m_BEST_products["AK8subjet1mass"][nj]);
+        m_ljet_subjet1_bdisc.push_back(  m_BEST_products["AK8subjet1bDisc"][nj] );
+        m_ljet_subjet1_charge.push_back( m_BEST_products["AK8subjet1charge"][nj] );
 
         m_HTAK8+=ljet.pt();
         nj++;
+        std::cout << " next " << std::endl;
     } // end loop over AK8
-
+    std::cout << " END AK8 " << std::endl;
 
     if (m_ljet_pt.size()<1) return;
     m_hist_cutflow->Fill(2.5);    // AK8Jets
@@ -251,7 +280,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
     // Leptons
     edm::Handle<edm::View<pat::Electron>> electrons; //Collection
-    event.getByToken( t_electrons, electrons );
+    event.getByToken( t_electrons_orig, electrons );
     for (size_t i = 0; i < electrons->size(); ++i){   
         const auto el = electrons->ptrAt(i);          // easier if we use ptrs for the id
         if (el->pt()<40 || fabs(el->eta())>2.4 ) continue;
@@ -261,7 +290,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];
         vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
         vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
-        vid::CutFlowResult idHEEP   = (*h_cutflow_elId_HEEP)[el];
+//        vid::CutFlowResult idHEEP   = (*h_cutflow_elId_HEEP)[el];
     }
 
     m_el_pt.clear();
@@ -273,7 +302,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_ID_loose.clear();
     m_el_ID_medium.clear();
     m_el_ID_tight.clear();
-    m_el_ID_HEEP.clear();
+    //m_el_ID_HEEP.clear();
 
     unsigned int i(0);
     for (const auto& el : *m_electrons.product()){
@@ -370,6 +399,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     } // end if isMC
 
     // Fill output tree
+    std::cout << " Fill tree " << std::endl;
     m_ttree->Fill();
 
     return;
@@ -380,15 +410,14 @@ void EventSaverFlatNtuple::endJob(){
     /* End of job 
        - Fill the metadata tree (only 1 "event")
     */
-    if (m_isMC){
-        m_xsection = m_mapOfSamples.at(m_sampleName).XSection;
-        m_kfactor  = m_mapOfSamples.at(m_sampleName).KFactor;
-        m_sumOfWeights = m_mapOfSamples.at(m_sampleName).sumOfWeights;
-    }
-    else{
-        m_xsection = 1;
-        m_kfactor  = 1;
-        m_sumOfWeights = 1;
+    m_xsection = 1;
+    m_kfactor  = 1;
+    m_sumOfWeights = 1;
+    if (m_isMC && m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end()){
+        Sample ss = m_mapOfSamples.at(m_sampleName);
+        m_xsection = ss.XSection;
+        m_kfactor  = ss.KFactor;
+        m_sumOfWeights = ss.sumOfWeights;
     }
 
     m_metadata_ttree->Fill();

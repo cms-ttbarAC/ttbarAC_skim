@@ -111,21 +111,8 @@ void getListOfKeys( TFile* file, std::vector<std::string> &fileKeys ){
 void getSampleWeights( std::string metadata_file,
                        std::map<std::string,Sample>& samples){
     /* Calculate XSection, KFactor, NEvents, and sum of weights (AMI) */
-    cma::INFO("TOOLS : Get sample weights (including sum of weights)");
-
-    // get the absolute path (in case of batch job)
-    char* cma_path = getenv("CYMINIANADIR");
-    std::string cma_absPath("");
-    if (cma_path==NULL){
-        cma::WARNING("TOOLS : environment variable 'CYMINIANADIR' is not set." );
-        cma::WARNING("TOOLS : Relative paths will be used " );
-        cma_absPath = "./";
-    }
-    else cma_absPath = cma_path;
-
-
-    std::ifstream in( (cma_absPath+"/"+metadata_file).c_str());
-    if (!in) cma::WARNING("TOOLS : File does not exist: "+cma_absPath+"/"+metadata_file);
+    std::ifstream in( metadata_file.c_str());
+    if (!in) cma::WARNING("TOOLS : File does not exist: "+metadata_file);
 
     std::string line;
     samples.clear();
@@ -159,12 +146,10 @@ bool str2bool( const std::string value ){
     /* Turn string into boolean */
     bool valueBoolean(false);
 
-    if (value.compare("True")==0 || value.compare("true")==0 || value.compare("1")==0){
+    if (value.compare("True")==0 || value.compare("true")==0 || value.compare("1")==0)
         valueBoolean = true;
-    }
-    else{
+    else
         valueBoolean = false;
-    }
 
     return valueBoolean;
 }
@@ -201,7 +186,8 @@ bool deltaRMatch( const TLorentzVector &particle1, const TLorentzVector &particl
 
 std::string m_debugLevel = "SetMe";
 void setVerboseLevel( const std::string& verboseLevel ) {
-    m_debugLevel = verboseLevel;
+    std::map<std::string,unsigned int> vbMap = cma::verboseMap();
+    m_debugLevel = vbMap.at(verboseLevel);
     return;
 }
 
@@ -234,13 +220,9 @@ void verbose(const std::string level, const std::string& message){
          if the level is "WARNING", then only WARNING/ERROR messages should be printed
          if the level is "ERROR", then only ERROR messages should be printed
     */
-    std::map<std::string,unsigned int> debugMap = {
-            {"DEBUG",   0},
-            {"INFO",    1},
-            {"WARNING", 2},
-            {"ERROR",   3} };
+    std::map<std::string,unsigned int> debugMap = cma::verboseMap();
 
-    if ( debugMap.at( level ) >= debugMap.at( m_debugLevel ))
+    if ( debugMap.at( level ) >= m_debugLevel)
         std::cout << " " << level << " :: " << message << std::endl;
 
     return;
@@ -255,22 +237,6 @@ std::map<std::string,unsigned int> verboseMap() {
             {"ERROR",   3} };
     
     return verbose_map;
-}
-
-void HELP(const std::string& runExecutable){
-    /* HELP message (pass 'runExecutable' in case you are running from some 
-       script like 'skim', 'run', or a custom macro)
-    */
-    std::cout << "\n   ** CyMiniAna ** " << std::endl;
-    std::cout << "   --------------- " << std::endl;
-    std::cout << "   Framework to perform event selection, write-out" << std::endl;
-    std::cout << "   a few histograms or efficiencies, and make plots.\n" << std::endl;
-
-    std::cout << "   To run:" << std::endl;
-    std::cout << "      ./" << runExecutable << " share/cmaConfig.txt \n" << std::endl;
-    std::cout << "    where 'share/cmaConfig.txt' is the configuration file \n" << std::endl;
-
-    return;
 }
 
 } // end namespace

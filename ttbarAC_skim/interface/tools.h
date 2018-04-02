@@ -71,7 +71,7 @@ namespace cma{
     };
 
     // debug message handling
-    extern std::string m_debugLevel;
+    extern unsigned int m_debugLevel;
     void setVerboseLevel(const std::string& verboseLevel);
     void DEBUG(const std::string& message);
     void INFO(const std::string& message);

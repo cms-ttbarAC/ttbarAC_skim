@@ -16,6 +16,7 @@ over MiniAOD samples
 To run:
   cmsRun test/runSkim.py
 """
+import json
 import FWCore.ParameterSet.Config as cms
 from FWCore.ParameterSet.VarParsing import VarParsing
 
@@ -31,6 +32,7 @@ options.parseArguments()
 process = cms.Process("ttbarACskim")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
+process.MessageLogger.cerr.FwkReport.reportEvery = 1
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
@@ -38,7 +40,8 @@ process.source = cms.Source("PoolSource",
 #	'/store/mc/RunIISpring16MiniAODv2/ZprimeToTT_M-3000_W-30_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14-v1/70000/1A405524-3E3D-E611-B103-047D7BD6DDB2.root'
 	)
 )
-process.MessageLogger.cerr.FwkReport.reportEvery = 1000
+process.TFileService = cms.Service("TFileService",fileName = cms.string("ttbarAC_outtree.root"))
+
 
 ## BEST
 process.BESTProducer = cms.EDProducer('BESTProducer',
@@ -55,12 +58,12 @@ process.selectedMuons = cms.EDFilter('PATMuonSelector',
     cut = cms.string('pt > 40.0 && abs(eta) < 2.4')
 )
 
-### VID
+### VID Electrons
 from PhysicsTools.SelectorUtils.tools.vid_id_tools import *
 switchOnVIDElectronIdProducer(process, DataFormat.MiniAOD)
 my_id_modules = ['RecoEgamma.ElectronIdentification.Identification.cutBasedElectronHLTPreselecition_Summer16_V1_cff',
-                 'RecoEgamma.ElectronIdentification.Identification.cutBasedElectronID_Summer16_80X_V1_cff',
-                 'RecoEgamma.ElectronIdentification.Identification.heepElectronID_HEEPV70_cff']
+                 'RecoEgamma.ElectronIdentification.Identification.cutBasedElectronID_Summer16_80X_V1_cff']
+#                 'RecoEgamma.ElectronIdentification.Identification.heepElectronID_HEEPV70_cff']
 for idmod in my_id_modules:
     setupAllVIDIdsInModule(process,idmod,setupVIDElectronSelection)
 
@@ -98,23 +101,33 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
 )
 
 
-## EVENT SELECTION
-process.selection = cms.EDFilter("eventSelection")
-
 ## EVENT SAVER FLAT NTUPLE
+## Get the sampleName (primary dataset)
+sample_name = process.source.fileNames[0]
+
 process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
-    isMC = cms.bool(options.isMC)
+    isMC = cms.bool(options.isMC),
+    sampleName = cms.string(sample_name),
+    metadataFile = cms.string("metadataFile.txt"),
+    elIdFullInfoMap_Loose  = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-loose"),
+    elIdFullInfoMap_Medium = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-medium"),
+    elIdFullInfoMap_Tight  = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-tight"),
+    #elIdFullInfoMap_HEEP   = cms.InputTag("egmGsfElectronIDs:heepElectronID-HEEPV70"), 
 )
 
+process.dump=cms.EDAnalyzer('EventContentAnalyzer')
+
 ## PROCESS
-process.p = cms.Path(process.BESTProducer*
-     process.selectedMuons*
-     process.selectedElectrons*
-     process.selectedAK4Jets*
-     process.selectedMET*
-     process.selectedGenParticles*
-     process.selection*
-     process.tree
+process.p = cms.Path(
+    process.BESTProducer*
+    process.selectedMuons*
+    process.selectedElectrons*
+    process.selectedAK4Jets*
+    process.selectedMET*
+    process.selectedGenParticles*
+    process.egmGsfElectronIDSequence*
+    process.dump*
+    process.tree
 )
 
 

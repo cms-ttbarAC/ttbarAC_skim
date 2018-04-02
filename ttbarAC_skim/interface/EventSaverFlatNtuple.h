@@ -68,8 +68,6 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
     virtual void endJob() override;
 
-    edm::Service<TFileService> m_fs;
-
     TTree* m_ttree;                // physics information
     TTree* m_metadata_ttree;       // metadata
     TH1D* m_hist_cutflow;
@@ -117,7 +115,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     edm::EDGetTokenT<edm::ValueMap<vid::CutFlowResult>> t_elIdFullInfoMap_Tight;
     edm::EDGetTokenT<edm::ValueMap<vid::CutFlowResult>> t_elIdFullInfoMap_HEEP;
 
-    std::vector< edm::EDGetTokenT<std::vector<double>> > t_BEST_products;
+    std::vector< edm::EDGetTokenT<std::vector<float>> > t_BEST_products;
 
     // Handles
     edm::Handle<pat::MuonCollection> m_muons;
@@ -298,23 +296,27 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
         "FWmoment4W",
         "FWmoment4Z",
         "FWmoment4top",
-        "SDmass",
+        "AK8SDmass",
         "aplanarityH",
         "aplanarityW",
         "aplanarityZ",
         "aplanaritytop",
         "bDisc",
-        "bDisc1",
-        "bDisc2",
+        "AK8subjet0bDisc",
+        "AK8subjet1bDisc",
         "et",
         "eta",
         "isotropyH",
         "isotropyW",
         "isotropyZ",
         "isotropytop",
-        "q",
-        "qsubjet0",
-        "qsubjet1",
+        "AK8charge",
+        "AK8subjet0charge",
+        "AK8subjet1charge",
+        "AK8subjet0pT",
+        "AK8subjet1pT",
+        "AK8subjet0mass",
+        "AK8subjet1mass",
         "sphericityH",
         "sphericityW",
         "sphericityZ",
