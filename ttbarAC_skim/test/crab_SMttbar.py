@@ -10,6 +10,7 @@ config.section_("JobType")
 config.JobType.pluginName = 'Analysis'
 config.JobType.psetName = 'runSkim.py'
 config.JobType.allowUndistributedCMSSW = True
+config.JobType.pyCfgParams = ['isMC=True']
 
 config.section_("Data")
 config.Data.inputDataset = '/TT_TuneCUETP8M1_13TeV-powheg-pythia8/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14_ext3-v1/MINIAODSIM' 
