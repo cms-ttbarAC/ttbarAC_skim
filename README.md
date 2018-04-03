@@ -14,7 +14,7 @@ cmsenv
 git cms-init
 ```
 
-Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and other packages:
+Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and other necessary packages:
 ```
 # VID
 git cms-addpkg RecoEgamma/ElectronIdentification
@@ -22,11 +22,8 @@ git cms-addpkg PhysicsTools/SelectorUtils
 # BEST 
 git clone git@github.com:justinrpilot/BESTAnalysis -b 90x_prod
 # LWTNN
-mkdir lwtnn && cd lwtnn/
-git clone https://github.com/demarley/lwtnn.git
-cd lwtnn/
-git checkout CMSSW_8_0_X-compatible
-cd ../../
+mkdir lwtnn
+git clone https://github.com/demarley/lwtnn.git -b CMSSW_8_0_X-compatible lwtnn/lwtnn
 # Analysis code -- now linked with this package
 mkdir Analysis
 git clone https://github.com/cms-ttbarAC/CyMiniAna.git Analysis/CyMiniAna
