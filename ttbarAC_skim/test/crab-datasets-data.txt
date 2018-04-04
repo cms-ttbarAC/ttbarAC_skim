@@ -1,0 +1,16 @@
+SingleElectronB /SingleElectron/Run2016B-03Feb2017_ver2-v2/MINIAOD
+SingleElectronC /SingleElectron/Run2016C-03Feb2017-v1/MINIAOD
+SingleElectronD /SingleElectron/Run2016D-03Feb2017-v1/MINIAOD
+SingleElectronE /SingleElectron/Run2016E-03Feb2017-v1/MINIAOD
+SingleElectronF /SingleElectron/Run2016F-03Feb2017-v1/MINIAOD
+SingleElectronG /SingleElectron/Run2016G-03Feb2017-v1/MINIAOD
+SingleElectronH /SingleElectron/Run2016H-03Feb2017_ver2-v1/MINIAOD
+SingleElectronH-v1 /SingleElectron/Run2016H-03Feb2017_ver3-v1/MINIAOD
+SingleMuonB /SingleMuon/Run2016B-03Feb2017_ver2-v2/MINIAOD
+SingleMuonC /SingleMuon/Run2016C-03Feb2017-v1/MINIAOD
+SingleMuonD /SingleMuon/Run2016D-03Feb2017-v1/MINIAOD
+SingleMuonE /SingleMuon/Run2016E-03Feb2017-v1/MINIAOD
+SingleMuonF /SingleMuon/Run2016F-03Feb2017-v1/MINIAOD
+SingleMuonG /SingleMuon/Run2016G-03Feb2017-v1/MINIAOD
+SingleMuonH /SingleMuon/Run2016H-03Feb2017_ver2-v1/MINIAOD
+SingleMuonH-v1 /SingleMuon/Run2016H-03Feb2017_ver3-v1/MINIAOD
