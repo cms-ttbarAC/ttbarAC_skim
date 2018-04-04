@@ -67,7 +67,16 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     }
 
     // Lightweight NN interface with BEST
-    std::string dnnFile("../test/BEST_mlp.json");
+    std::string dnnFile("");
+
+    try {
+        edm::FileInPath lwtnn_cfg("ttbarAC_skim/ttbarAC_skim/test/BEST_mlp.json");
+        dnnFile = lwtnn_cfg.fullPath();
+    }
+    catch (...) {
+        dnnFile = "BEST_mlp.json";
+    }
+
     std::ifstream input_cfg( dnnFile );                     // original: "data/BEST_mlp.json"
     lwt::JSONConfig lwcfg = lwt::parse_json( input_cfg );
     m_lwtnn = new lwt::LightweightNeuralNetwork(lwcfg.inputs, lwcfg.layers, lwcfg.outputs);
@@ -280,7 +289,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_ID_tight.clear();
     //m_el_ID_HEEP.clear();
 
-    unsigned int i(0);
     for (size_t i = 0; i < m_electrons->size(); ++i){   
         const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
 
