@@ -46,24 +46,19 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     m_ttree = fs->make<TTree>("eventVars","eventVars");
     m_metadata_ttree = fs->make<TTree>("metadata","metadata");
 
-    m_hist_cutflow = fs->make<TH1D>( "cutflow","cutflow",5,0,5);
+    m_hist_cutflow = fs->make<TH1D>( "cutflow","cutflow",3,0,3);
     m_hist_cutflow->GetXaxis()->SetBinLabel(1,"INITIAL");
     m_hist_cutflow->GetXaxis()->SetBinLabel(2,"PRIMARYVTX");
-    m_hist_cutflow->GetXaxis()->SetBinLabel(3,"TRIGGER");
-    m_hist_cutflow->GetXaxis()->SetBinLabel(4,"METFILTER");
-    m_hist_cutflow->GetXaxis()->SetBinLabel(5,"AK8JETS");
+    m_hist_cutflow->GetXaxis()->SetBinLabel(3,"AK8JETS");
 
     initialize_branches();
+
 
     // options set by config
     m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
 
     cma::setVerboseLevel("WARNING");
     m_sampleName = t_sampleName;
-    m_XSections.clear();
-    m_KFactors.clear();
-    m_sumOfMCWeights.clear();
-    m_NEvents.clear();
     if (m_isMC){
         m_mapOfSamples.clear();
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
@@ -148,30 +143,21 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         }
     }
 
-    // Trigger Bits
+    // Trigger Bits (save the decision and apply offline)
     // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2016#Trigger
-    bool passTrigger(false);
-    m_triggerBits.clear();
-
     const edm::TriggerNames& names = event.triggerNames(*h_triggerBits);
     for (unsigned int i=0, size=h_triggerBits->size(); i<size; ++i) {
         const std::string name(names.triggerName(i));
-        if (std::find( m_triggers.begin(), m_triggers.end(), name ) == m_triggers.end()) continue;
-        m_triggerBits[name] = 0;
-        if (h_triggerBits->accept(i)){
-            m_triggerBits[name] = 1;
-            passTrigger = true;
+        for (const auto& trig : m_triggers){
+            std::size_t found = name.find( trig );
+            if (found==std::string::npos) continue;
+            m_triggerBits.at(trig) = h_triggerBits->accept(i);
         }
     }
 
-    if (!passTrigger) return;
-    m_hist_cutflow->Fill(2.5);   // Trigger
 
-
-    // MET Filters
+    // MET Filters (save the decision and apply offline)
     //  https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
-    bool passMETFilters(true);
-
     edm::TriggerNames const& filterNames = event.triggerNames(*h_METFilter);
     unsigned int nMETfilters = h_METFilter->size();
 
@@ -180,14 +166,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         const std::string name(filterNames.triggerName(i));
         if ( std::find( m_filters.begin(), m_filters.end(), name ) == m_filters.end() ) continue;
 
-        if (!h_METFilter->accept(i)){
-            passMETFilters = false;
-            break;
-        }
+        m_filterBits.at(name) = h_METFilter->accept(i);
     }
-
-    if (!passMETFilters) return;
-    m_hist_cutflow->Fill(3.5);   // MET Filters
 
 
     // AK4 jets
@@ -201,6 +181,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_jet_uncorrPt.clear();
     m_jet_uncorrE.clear();
 
+    m_HTAK4 = 0;
+
     for (const auto& jet : *m_jets.product()){
         bool goodJet = jetID(jet);
         if (!goodJet) continue;
@@ -211,11 +193,15 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_mass.push_back( jet.mass() );
         m_jet_area.push_back( jet.jetArea() );
         m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-        m_jet_deepCSV.push_back( -1 );
+        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
 
         reco::Candidate::LorentzVector uncorrJet = jet.correctedP4(0);
         m_jet_uncorrPt.push_back(uncorrJet.pt());
         m_jet_uncorrE.push_back(uncorrJet.energy());
+
+        m_HTAK4 += jet.pt();
     }
 
     // AK8 jets
@@ -238,10 +224,12 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_subjet0_pt.clear();
     m_ljet_subjet0_mass.clear();
     m_ljet_subjet0_bdisc.clear();
+    m_ljet_subjet0_deepCSV.clear();
     m_ljet_subjet0_charge.clear();
     m_ljet_subjet1_pt.clear();
     m_ljet_subjet1_mass.clear();
     m_ljet_subjet1_bdisc.clear();
+    m_ljet_subjet1_deepCSV.clear();
     m_ljet_subjet1_charge.clear();
     m_ljet_uncorrPt.clear();
     m_ljet_uncorrE.clear();
@@ -268,7 +256,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     unsigned int nj(0);
     for (const auto& ljet : *m_ljets.product()){
         // Check jet
-        bool pass = passAK8( ljet,nj,m_BEST_products.at("AK8SDmass")[nj] );
+        float SDmass = m_BEST_products.at("SDmass")[nj];
+        bool pass = passAK8( ljet,nj,SDmass );
         if (!pass){
             nj++;
             continue;
@@ -286,7 +275,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
         // BESTProducer
         m_ljet_charge.push_back( m_BEST_products.at("q")[nj] );
-        m_ljet_SDmass.push_back( m_BEST_products.at("SDmass")[nj] );
+        m_ljet_SDmass.push_back( SDmass );
 
         // BEST score
         std::map<std::string,double> BEST_products;
@@ -322,17 +311,27 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_BEST_j.push_back( NNresults.at("dnn_qcd") );
         m_ljet_BEST_class.push_back( particleID );
 
+        // Subjet information (soft drop produces 2 subjets)
+        auto const& subjets = ljet.subjets();
+        auto const& subjet0 = subjets.at(0);
+        auto const& subjet1 = subjets.at(1);
+
+        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
+        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
+
         m_ljet_subjet0_bdisc.push_back(  m_BEST_products["bDisc1"][nj] );
         m_ljet_subjet0_charge.push_back( m_BEST_products["qsubjet0"][nj] );
+        m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
+        m_ljet_subjet0_pt.push_back(     subjet0->pt() );
+        m_ljet_subjet0_mass.push_back(   subjet0->mass() );
+
         m_ljet_subjet1_bdisc.push_back(  m_BEST_products["bDisc2"][nj] );
         m_ljet_subjet1_charge.push_back( m_BEST_products["qsubjet1"][nj] );
-
-        auto const& subjet0 = ljet.daughter(0);
-        auto const& subjet1 = ljet.daughter(1);
-        m_ljet_subjet0_pt.push_back(   subjet0->pt() );   //  m_BEST_products["AK8subjet0pT"][nj]);
-        m_ljet_subjet0_mass.push_back( subjet0->mass() ); //  m_BEST_products["AK8subjet0mass"][nj]);
-        m_ljet_subjet1_pt.push_back(   subjet1->pt() );   //  m_BEST_products["AK8subjet1pT"][nj]);
-        m_ljet_subjet1_mass.push_back( subjet1->mass() ); //  m_BEST_products["AK8subjet1mass"][nj]);
+        m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
+        m_ljet_subjet1_pt.push_back(     subjet1->pt() );
+        m_ljet_subjet1_mass.push_back(   subjet1->mass() );
 
         reco::Candidate::LorentzVector uncorrJet = ljet.correctedP4(0);
         m_ljet_uncorrPt.push_back(uncorrJet.pt());
@@ -343,7 +342,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     } // end loop over AK8
 
     if (m_ljet_pt.size()<1) return;
-    m_hist_cutflow->Fill(4.5);    // AK8Jets
+    m_hist_cutflow->Fill(2.5);    // AK8Jets
 
 
 
@@ -513,6 +512,18 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("npv",         &m_npv,         "npv/I");            // int
     m_ttree->Branch("true_pileup", &m_true_pileup, "true_pileup/I");    // int
 
+    // Triggers
+    for (const auto& name : m_triggers){
+        m_triggerBits[name] = 0;
+        m_ttree->Branch(name.c_str(),  &m_triggerBits[name], (name+"/i").c_str());  // uint
+    }
+
+    // Filters
+    for (const auto& name : m_filters){
+        m_filterBits[name] = 0;
+        m_ttree->Branch(name.c_str(),  &m_filterBits[name],  (name+"/i").c_str());  // uint
+    }
+
     // -- AK8 Jets
     m_ttree->Branch("AK8pt",     &m_ljet_pt);     // vector of floats
     m_ttree->Branch("AK8eta",    &m_ljet_eta);    // vector of floats
@@ -524,20 +535,24 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8tau1",   &m_ljet_tau1);   // vector of floats
     m_ttree->Branch("AK8tau2",   &m_ljet_tau2);   // vector of floats
     m_ttree->Branch("AK8tau3",   &m_ljet_tau3);   // vector of floats
-    m_ttree->Branch("AK8PtSubjet0",     &m_ljet_subjet0_pt);     // vector of floats
-    m_ttree->Branch("AK8MassSubjet0",   &m_ljet_subjet0_mass);   // vector of floats
-    m_ttree->Branch("AK8bDiscSubjet0",  &m_ljet_subjet0_bdisc);  // vector of floats
-    m_ttree->Branch("AK8ChargeSubjet0", &m_ljet_subjet0_charge); // vector of floats
-    m_ttree->Branch("AK8PtSubjet1",     &m_ljet_subjet1_pt);     // vector of floats
-    m_ttree->Branch("AK8MassSubjet1",   &m_ljet_subjet1_mass);   // vector of floats
-    m_ttree->Branch("AK8bDiscSubjet1",  &m_ljet_subjet1_bdisc);  // vector of floats
-    m_ttree->Branch("AK8ChargeSubjet1", &m_ljet_subjet1_charge); // vector of floats
+    m_ttree->Branch("AK8subjet0Pt",     &m_ljet_subjet0_pt);     // vector of floats
+    m_ttree->Branch("AK8subjet0Mass",   &m_ljet_subjet0_mass);   // vector of floats
+    m_ttree->Branch("AK8subjet0bDisc",  &m_ljet_subjet0_bdisc);  // vector of floats
+    m_ttree->Branch("AK8subjet0DeepCSV",&m_ljet_subjet0_deepCSV);// vector of floats
+    m_ttree->Branch("AK8subjet0Charge", &m_ljet_subjet0_charge); // vector of floats
+    m_ttree->Branch("AK8subjet1Pt",     &m_ljet_subjet1_pt);     // vector of floats
+    m_ttree->Branch("AK8subjet1Mass",   &m_ljet_subjet1_mass);   // vector of floats
+    m_ttree->Branch("AK8Subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
+    m_ttree->Branch("AK8Subjet1DeepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
+    m_ttree->Branch("AK8subjet1Charge", &m_ljet_subjet1_charge); // vector of floats
     m_ttree->Branch("AK8BEST_t", &m_ljet_BEST_t); // vector of floats
     m_ttree->Branch("AK8BEST_w", &m_ljet_BEST_w); // vector of floats
     m_ttree->Branch("AK8BEST_z", &m_ljet_BEST_z); // vector of floats
     m_ttree->Branch("AK8BEST_h", &m_ljet_BEST_h); // vector of floats
     m_ttree->Branch("AK8BEST_j", &m_ljet_BEST_j); // vector of floats
     m_ttree->Branch("AK8BEST_class", &m_ljet_BEST_class); // vector of floats
+    m_ttree->Branch("AK8uncorrPt", &m_ljet_uncorrPt);  // vector of floats
+    m_ttree->Branch("AK8uncorrE",  &m_ljet_uncorrE);   // vector of floats
 
     // Physics Objects
     // -- AK4 Jets
@@ -547,6 +562,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK4mass", &m_jet_mass);   // vector of floats
     m_ttree->Branch("AK4area", &m_jet_area);   // vector of floats
     m_ttree->Branch("AK4bDisc",&m_jet_bdisc);  // vector of floats
+    m_ttree->Branch("AK4DeepCSV",&m_jet_deepCSV);  // vector of floats
+    m_ttree->Branch("AK4uncorrPt", &m_jet_uncorrPt);  // vector of floats
+    m_ttree->Branch("AK4uncorrE",  &m_jet_uncorrE);   // vector of floats
 
     // -- Leptons (electrons & muons)
     m_ttree->Branch("ELpt",    &m_el_pt);     // vector of floats
@@ -576,6 +594,7 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("METpt",  &m_met_met, "METpt/F");  // float
     m_ttree->Branch("METphi", &m_met_phi, "METphi/F"); // float
     m_ttree->Branch("HTak8",  &m_HTAK8,   "HTak8/F");  // float
+    m_ttree->Branch("HTak4",  &m_HTAK4,   "HTak4/F");  // float
 
     // Misc.
     // -- Generator-level information -- saving TOP only (30 March 2018)

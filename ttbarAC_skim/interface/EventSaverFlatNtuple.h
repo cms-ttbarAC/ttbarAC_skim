@@ -195,10 +195,12 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet0_pt;
     std::vector<float> m_ljet_subjet0_mass;
     std::vector<float> m_ljet_subjet0_bdisc;
+    std::vector<float> m_ljet_subjet0_deepCSV;
     std::vector<float> m_ljet_subjet0_charge;
     std::vector<float> m_ljet_subjet1_pt;
     std::vector<float> m_ljet_subjet1_mass;
     std::vector<float> m_ljet_subjet1_bdisc;
+    std::vector<float> m_ljet_subjet1_deepCSV;
     std::vector<float> m_ljet_subjet1_charge;
     std::vector<float> m_ljet_uncorrPt;
     std::vector<float> m_ljet_uncorrE;
@@ -250,6 +252,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     float m_met_met;
     float m_met_phi;
     float m_HTAK8;
+    float m_HTAK4;
     float m_HT_branch;
     float m_ST_branch;
 
@@ -264,6 +267,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     unsigned int m_npv;
 
     std::map<std::string,unsigned int> m_triggerBits;
+    std::map<std::string,unsigned int> m_filterBits;
 
     float m_weight_mc;
     float m_weight_btag;
@@ -345,27 +349,23 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
         "FWmoment4W",
         "FWmoment4Z",
         "FWmoment4top",
-        "AK8SDmass",
+        "SDmass",
         "aplanarityH",
         "aplanarityW",
         "aplanarityZ",
         "aplanaritytop",
         "bDisc",
-        "AK8subjet0bDisc",
-        "AK8subjet1bDisc",
+        "bDisc1",
+        "bDisc2",
         "et",
         "eta",
         "isotropyH",
         "isotropyW",
         "isotropyZ",
         "isotropytop",
-        "AK8charge",
-        "AK8subjet0charge",
-        "AK8subjet1charge",
-        "AK8subjet0pT",
-        "AK8subjet1pT",
-        "AK8subjet0mass",
-        "AK8subjet1mass",
+        "q",
+        "qsubjet0",
+        "qsubjet1",
         "sphericityH",
         "sphericityW",
         "sphericityZ",

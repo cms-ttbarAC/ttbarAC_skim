@@ -19,7 +19,7 @@ To run:
 import json
 import FWCore.ParameterSet.Config as cms
 from FWCore.ParameterSet.VarParsing import VarParsing
-
+from PhysicsTools.PatAlgos.tools.jetTools import updateJetCollection
 
 options = VarParsing('analysis')
 options.register('isMC', True,
@@ -84,7 +84,20 @@ process.selectedAK4Jets = cms.EDFilter('PATJetSelector',
     src = cms.InputTag('slimmedJets'),
     cut = cms.string('pt > 50.0 && abs(eta) < 2.4')
 )
-
+"""
+updateJetCollection(
+    process,
+    labelName = "DeepCSV",
+    jetSource = cms.InputTag("selectedJets"),
+    jetCorrections = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'None'),
+    btagDiscriminators = [
+      'pfDeepCSVJetTags:probb',
+      'pfDeepCSVJetTags:probbb',
+      'pfDeepCSVJetTags:probc',
+      'pfDeepCSVJetTags:probudsg',
+      ] ## to add discriminators
+)
+"""
 process.selectedMET = cms.EDFilter('PATMETSelector',
     src = cms.InputTag('slimmedMETs'),
     cut = cms.string('pt > -999.9'),
