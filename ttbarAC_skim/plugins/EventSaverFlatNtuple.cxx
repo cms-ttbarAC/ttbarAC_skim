@@ -378,6 +378,17 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_el_ID_medium.push_back(idMedium.cutFlowPassed() );
         m_el_ID_tight.push_back( idTight.cutFlowPassed() );
 //        m_el_ID_HEEP.push_back(  idHEEP.cutFlowPassed() );
+
+        // ID -- no isolation
+        // https://twiki.cern.ch/twiki/bin/view/Main/VIDTutorial2017#Performing_N_1_Studies
+        vid::CutFlowResult idLooseNoIso  = idLoose.getCutFlowResultMasking(7);   // 7 = GsfEleEffAreaPFIsoCut_0
+        vid::CutFlowResult idMediumNoIso = idMedium.getCutFlowResultMasking(7);
+        vid::CutFlowResult idTightNoIso  = idTight.getCutFlowResultMasking(7);
+
+        m_el_ID_looseNoIso.push_back( idLooseNoIso.cutFlowPassed() );
+        m_el_ID_mediumNoIso.push_back(idMediumNoIso.cutFlowPassed() );
+        m_el_ID_tightNoIso.push_back( idTightNoIso.cutFlowPassed() );
+
         i++;
     } // end loop over electrons
 
@@ -406,10 +417,12 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         float iso04 = (chPt+TMath::Max(0.,nhPt+phPt-0.5*puPt))/mu.pt();
         m_mu_iso.push_back( iso04 );
 
-        // Loose ID
+        // ID
+        // https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideMuonIdRun2#Muon_Identification
         m_mu_ID_loose.push_back( muon::isLooseMuon(mu) );
 
         // Medium ID  -- 2016 data B-F vs G-H
+        // https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2?rev=27#MediumID2016_to_be_used_with_Run
         bool goodGlob   = mu.isGlobalMuon() && 
                           mu.globalTrack()->normalizedChi2() < 3 && 
                           mu.combinedQuality().chi2LocalPosition < 12 && 
@@ -421,11 +434,12 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         bool isMediumMuon = (event.isRealData() && m_runNumber <= 278808) ? isMediumBF : isMedium;
         m_mu_ID_medium.push_back( isMediumMuon );
 
-        m_mu_ID_tight.push_back( mu.isTightMuon(PV) );
+        m_mu_ID_tight.push_back( muon::isTightMuon(mu,PV) );
     } // end loop over muons
 
     m_met_met = (*m_met.product())[0].pt();
     m_met_phi = (*m_met.product())[0].phi();
+
 
     if (m_isMC){
         m_mc_pt.clear();
@@ -544,6 +558,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("ELlooseID",  &m_el_ID_loose);      // vector of ints
     m_ttree->Branch("ELmediumID", &m_el_ID_medium);     // vector of ints
     m_ttree->Branch("ELtightID",  &m_el_ID_tight);      // vector of ints
+    m_ttree->Branch("ELlooseIDnoIso",  &m_el_ID_looseNoIso);      // vector of ints
+    m_ttree->Branch("ELmediumIDnoIso", &m_el_ID_mediumNoIso);     // vector of ints
+    m_ttree->Branch("ELtightIDnoIso",  &m_el_ID_tightNoIso);      // vector of ints
 
     m_ttree->Branch("MUpt",    &m_mu_pt);     // vector of floats
     m_ttree->Branch("MUeta",   &m_mu_eta);    // vector of floats

@@ -213,6 +213,10 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<int> m_el_ID_medium;
     std::vector<int> m_el_ID_tight;
     std::vector<int> m_el_ID_HEEP;
+    std::vector<int> m_el_ID_looseNoIso;
+    std::vector<int> m_el_ID_mediumNoIso;
+    std::vector<int> m_el_ID_tightNoIso;
+    std::vector<int> m_el_ID_HEEPNoIso;
     std::vector<int> m_el_reco;
     std::vector<float> m_el_SF_ID;
     std::vector<float> m_el_SF_reco;
