@@ -17,6 +17,7 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "FWCore/Utilities/interface/InputTag.h"
 #include "FWCore/Utilities/interface/EDMException.h"
+#include "FWCore/Common/interface/TriggerNames.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 #include "DataFormats/Provenance/interface/EventAuxiliary.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
@@ -36,6 +37,10 @@
 #include "DataFormats/EgammaCandidates/interface/Conversion.h"
 #include "RecoEgamma/EgammaTools/interface/ConversionTools.h"
 #include "DataFormats/PatCandidates/interface/VIDCutFlowResult.h"
+
+#include "DataFormats/Common/interface/TriggerResults.h"
+#include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
+#include "DataFormats/PatCandidates/interface/PackedTriggerPrescales.h"
 
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 #include "DataFormats/PatCandidates/interface/PackedGenParticle.h"
@@ -62,6 +67,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     void initialize_branches();
     bool checkTopDecay(const reco::Candidate& daughter) const;
     bool passAK8( const pat::Jet& j, const int index, const float& SDmass) const;
+    bool jetID( const pat::Jet& j ) const;
 
   private:
 
@@ -91,9 +97,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     // Tokens
     edm::EDGetTokenT<std::vector<pat::Muon>> t_muons;
-//    edm::EDGetTokenT<std::vector<pat::Electron>> t_electrons;
     edm::EDGetTokenT<edm::View<pat::Electron>> t_electrons;
-    edm::EDGetTokenT<edm::View<pat::Electron>> t_electrons_orig;
     edm::EDGetTokenT<std::vector<pat::Jet>> t_jets;
     edm::EDGetTokenT<std::vector<pat::Jet>> t_ljets;
     edm::EDGetTokenT<reco::GenJetCollection> t_truth_ljets;
@@ -105,12 +109,13 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     edm::EDGetTokenT<int> t_evtno;
     edm::EDGetTokenT<int> t_lumisec;
     edm::EDGetTokenT<std::vector<reco::GenParticle>> t_genEvtInfoProd;
-//    edm::EDGetTokenT<GenEventInfoProduct> t_genEvtInfoProd;
     edm::EDGetTokenT<double> t_rho;
     edm::EDGetTokenT<std::vector<reco::Vertex>> t_vertices;
     edm::EDGetTokenT<std::vector<PileupSummaryInfo>> t_pileup;
     edm::EDGetTokenT<reco::BeamSpot> t_beamspot;
     edm::EDGetTokenT<reco::ConversionCollection> t_conversions;
+    edm::EDGetTokenT<edm::TriggerResults> t_triggerBits;
+    edm::EDGetTokenT<edm::TriggerResults> t_METFilter;
 
     edm::EDGetTokenT<edm::ValueMap<vid::CutFlowResult>> t_elIdFullInfoMap_Loose;
     edm::EDGetTokenT<edm::ValueMap<vid::CutFlowResult>> t_elIdFullInfoMap_Medium;
@@ -137,6 +142,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     edm::Handle<int> h_evtno;
     edm::Handle<int> h_lumisec;
     edm::Handle<std::vector<reco::GenParticle>> h_genEvtInfoProd;
+    edm::Handle<edm::TriggerResults> h_triggerBits;
+    edm::Handle<edm::TriggerResults> h_METFilter;
 
     edm::Handle<edm::ValueMap<vid::CutFlowResult> > h_cutflow_elId_Loose;
     edm::Handle<edm::ValueMap<vid::CutFlowResult> > h_cutflow_elId_Medium;
@@ -153,6 +160,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_jet_eta;
     std::vector<float> m_jet_phi;
     std::vector<float> m_jet_mass;
+    std::vector<float> m_jet_area;
+    std::vector<float> m_jet_deepCSV;
     std::vector<float> m_jet_bdisc;
     std::vector<float> m_jet_charge;
     std::vector<int> m_jet_ID_loose;
@@ -160,11 +169,14 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<int> m_jet_ID_tight;
     std::vector<int> m_jet_ID_tightlepveto;
     std::vector<int> m_jet_true_flavor;
+    std::vector<float> m_jet_uncorrPt;
+    std::vector<float> m_jet_uncorrE;
 
     std::vector<float> m_ljet_pt;
     std::vector<float> m_ljet_eta;
     std::vector<float> m_ljet_phi;
     std::vector<float> m_ljet_mass;
+    std::vector<float> m_ljet_area;
     std::vector<float> m_ljet_tau1;
     std::vector<float> m_ljet_tau2;
     std::vector<float> m_ljet_tau3;
@@ -188,6 +200,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet1_mass;
     std::vector<float> m_ljet_subjet1_bdisc;
     std::vector<float> m_ljet_subjet1_charge;
+    std::vector<float> m_ljet_uncorrPt;
+    std::vector<float> m_ljet_uncorrE;
 
     std::vector<float> m_el_pt;
     std::vector<float> m_el_eta;
@@ -245,6 +259,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     int m_true_pileup;
     unsigned int m_npv;
 
+    std::map<std::string,unsigned int> m_triggerBits;
+
     float m_weight_mc;
     float m_weight_btag;
     float m_weight_pileup;
@@ -279,6 +295,32 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_truth_ljet_e;
     std::vector<float> m_truth_ljet_charge;
 
+    // Triggers
+    // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2016#Trigger
+    // Boosted diff x-sec (l+jets); Zprime->ttbar (0-lepton)
+    std::vector<std::string> m_triggers = {
+        "HLT_Mu40_Eta2P1_PFJet200_PFJet50",                 // 2016
+        "HLT_Ele45_CaloIdVT_GsfTrkIdT_PFJet200_PFJet50",    // 2016
+        "HLT_Ele50_CaloIdVT_GsfTrkIdT_PFJet165",            // 2017
+        "HLT_Mu50",                                         // 2017
+        "HLT_Ele115_CaloIdVT_GsfTrkIdT",
+	"HLT_PFHT800",
+        "HLT_PFHT900",
+        "HLT_PFHT700TrimMass50",
+        "HLT_AK8PFJet450",
+        "HLT_PFJet360TrimMass30"
+    };
+
+    // MET Filters
+    
+    std::vector<std::string> m_filters = {
+        "Flag_HBHENoiseFilter",
+        "Flag_HBHENoiseIsoFilter",
+        "Flag_EcalDeadCellTriggerPrimitiveFilter",
+        "Flag_goodVertices",
+        "Flag_eeBadScFilter",
+        "Flag_globalTightHalo2016Filter" // (data?)
+    };
 
 
     // BEST variables
