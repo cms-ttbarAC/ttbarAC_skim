@@ -193,8 +193,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_mass.push_back( jet.mass() );
         m_jet_area.push_back( jet.jetArea() );
         m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
-        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:BvsAll");
+        double deepCSV_bb = 0.0; //jet.bDiscriminator("pfDeepCSVJetTags:probbb");
         m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
 
         reco::Candidate::LorentzVector uncorrJet = jet.correctedP4(0);

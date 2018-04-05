@@ -88,12 +88,13 @@ process.selectedAK4Jets = cms.EDFilter('PATJetSelector',
 updateJetCollection(
     process,
     labelName = "DeepCSV",
-    jetSource = cms.InputTag("selectedJets"),
+    jetSource = cms.InputTag("slimmedJets"),
     jetCorrections = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'None'),
     btagDiscriminators = [
       'pfDeepCSVJetTags:probb',
       'pfDeepCSVJetTags:probbb',
       'pfDeepCSVJetTags:probc',
+      'pfDeepCSVJetTags:probcc',
       'pfDeepCSVJetTags:probudsg',
       ] ## to add discriminators
 )
