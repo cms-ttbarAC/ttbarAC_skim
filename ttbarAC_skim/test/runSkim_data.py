@@ -61,10 +61,11 @@ process.out = cms.OutputModule("PoolOutputModule",
                                                                       ) 
                                )
 
-
+process.dump=cms.EDAnalyzer('EventContentAnalyzer')
 process.outpath = cms.EndPath(process.out)
 
 process.p = cms.Path(process.BESTProducer*
+                     process.dump*
 		     process.selectedMuons*
 		     process.selectedElectrons*
 		     process.selectedAK4Jets*

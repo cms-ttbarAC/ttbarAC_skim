@@ -531,8 +531,8 @@ for ifile in files:
             vELphi.push_back(el.phi())
             vELenergy.push_back(el.energy())
             vELcharge.push_back(el.charge())
-            vELiso.push_back( (el.trackIso() + el.caloIso()) / el.pt() )
             vELid.push_back( el.userFloat('ElectronMVAEstimatorRun2Spring15Trig25nsV1Values') )
+            vELiso.push_back( (el.trackIso() + el.caloIso()) / el.pt() )
 
         # Muons
         for m,mu in enumerate(muons):

@@ -5,6 +5,7 @@ file=$1
 sample=$2
 process=$3
 output_path="/store/group/lpctop/ttbarAC/flatNtuples/"
+is_MC=1
 
 cd ${_CONDOR_SCRATCH_DIR}
 source /cvmfs/cms.cern.ch/cmsset_default.sh  ## if a tcsh script, use .csh instead of .sh
@@ -17,7 +18,7 @@ ls
 echo ${file}
 
 
-python treeMaker_fwlite.py --files ${file} --isMC 1
+python treeMaker_fwlite.py --files ${file} --isMC $is_MC
 
 
 mv ttbarAC_outtree.root ttbarAC_tree_${sample}_${process}.root
