@@ -20,7 +20,7 @@ Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and other
 git cms-addpkg RecoEgamma/ElectronIdentification
 git cms-addpkg PhysicsTools/SelectorUtils
 # BEST 
-git clone git@github.com:justinrpilot/BESTAnalysis -b 90x_prod
+git clone https://github.com/justinrpilot/BESTAnalysis -b 90x_prod
 # LWTNN
 mkdir lwtnn
 git clone https://github.com/demarley/lwtnn.git -b CMSSW_8_0_X-compatible lwtnn/lwtnn
@@ -28,7 +28,7 @@ git clone https://github.com/demarley/lwtnn.git -b CMSSW_8_0_X-compatible lwtnn/
 mkdir Analysis
 git clone https://github.com/cms-ttbarAC/CyMiniAna.git Analysis/CyMiniAna
 
-git clone git@github.com:cms-ttbarAC/ttbarAC_skim
+git clone https://github.com/cms-ttbarAC/ttbarAC_skim
 
 scram b -j8
 ```
@@ -45,19 +45,30 @@ source /cvmfs/cms.cern.ch/crab3/crab.csh
 
 To submit crab jobs, the script `runSkim.py` is processed for MC using the `cmsRun` executable.
 
-First, edit `crab_*.py` with a new dataset name to reflect the sample you are processing, e.g., `crab_SMttbar.py`.  
-Make sure to the output directory is pointed to `/store/group/lpctop/edmNtuples/`.  
+There are two options for submitting crab jobs, (1) submit many jobs at once or (2) submit jobs one at a time.
+
+1. Write a text file that contains the datasets you would like to process, see `test/crab_datasets-data.txt` and `test/crab_datasets-mc.txt` as examples (or the files you might want to use).  
+Then, modify line 81 of `test/crab-submit-multiple.py` to reflect the text file you would like to process and run the script: 
+```
+python crab-submit-multiple.py
+```
+This script will loop through the different datasets and submit crab jobs for each one.
+_Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file!_
+
+2. Edit `crab_*.py` with a new dataset name to reflect the sample you are processing, e.g., `crab_SMttbar.py`.  
+Make sure to the output directory is pointed to `/store/group/lpctop/ttbarAC/ttbarAC_skim/`.  
 If you are processing data, modify the argument `config.JobType.pyCfgParams = ['isMC=True']` to `config.JobType.pyCfgParams = ['isMC=False']`.  
 To submit the CRAB jobs, enter the command:
 ```
 crab submit -c crab_*.py --dryrun
 crab proceed
 ```
-You can also submit the crab jobs with only `crab submit -c crab_*.py`, where `crab_*.py` is the crab configuration file.  
-Monitor the CRAB jobs and resubmit any failed jobs.
+You can also submit the crab jobs directly by removing `--dryrun`.
+
+For either option, monitor the CRAB jobs and resubmit any that fail.
 
 
-## Previous setup (still possible but not recommended)
+## Previous setup (still technically possible but not recommended)
 
 ### EDM Production:
 
@@ -69,7 +80,7 @@ voms-proxy-init -voms cms
 source /cvmfs/cms.cern.ch/crab3/crab.csh
 ```
 
-To submit crab jobs, the script `runSkim.py` (`runSkim_data.py`) is processed for MC (data) using the `cmsRun` executable.
+To submit crab jobs, the script `runSkim_data.py` (`runSkim.py` has been modified too much) is processed for MC (data) using the `cmsRun` executable.
 
 First, edit `crab_*.py` with a new dataset name to reflect the sample you are processing, e.g., `crab_SMttbar.py`.  
 Make sure to the output directory is pointed to `/store/group/lpctop/edmNtuples/`.  
