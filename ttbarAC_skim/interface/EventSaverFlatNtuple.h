@@ -211,14 +211,14 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_el_e;
     std::vector<int> m_el_iso;
     std::vector<float> m_el_charge;
-    std::vector<int> m_el_ID_loose;
-    std::vector<int> m_el_ID_medium;
-    std::vector<int> m_el_ID_tight;
-    std::vector<int> m_el_ID_HEEP;
-    std::vector<int> m_el_ID_looseNoIso;
-    std::vector<int> m_el_ID_mediumNoIso;
-    std::vector<int> m_el_ID_tightNoIso;
-    std::vector<int> m_el_ID_HEEPNoIso;
+    std::vector<unsigned int> m_el_ID_loose;
+    std::vector<unsigned int> m_el_ID_medium;
+    std::vector<unsigned int> m_el_ID_tight;
+    std::vector<unsigned int> m_el_ID_HEEP;
+    std::vector<unsigned int> m_el_ID_looseNoIso;
+    std::vector<unsigned int> m_el_ID_mediumNoIso;
+    std::vector<unsigned int> m_el_ID_tightNoIso;
+    std::vector<unsigned int> m_el_ID_HEEPNoIso;
     std::vector<int> m_el_reco;
     std::vector<float> m_el_SF_ID;
     std::vector<float> m_el_SF_reco;
@@ -231,11 +231,11 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_mu_eta;
     std::vector<float> m_mu_phi;
     std::vector<float> m_mu_e;
-    std::vector<int> m_mu_iso;
+    std::vector<float> m_mu_iso;
     std::vector<float> m_mu_charge;
-    std::vector<int> m_mu_ID_loose;
-    std::vector<int> m_mu_ID_medium;
-    std::vector<int> m_mu_ID_tight;
+    std::vector<unsigned int> m_mu_ID_loose;
+    std::vector<unsigned int> m_mu_ID_medium;
+    std::vector<unsigned int> m_mu_ID_tight;
     std::vector<float> m_mu_SF_ID;
     std::vector<float> m_mu_SF_ISO;
     std::vector<float> m_mu_SF_trigger;
@@ -310,7 +310,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
         "HLT_Mu40_Eta2P1_PFJet200_PFJet50",                 // 2016
         "HLT_Ele45_CaloIdVT_GsfTrkIdT_PFJet200_PFJet50",    // 2016
         "HLT_Ele50_CaloIdVT_GsfTrkIdT_PFJet165",            // 2017
-        "HLT_Mu50",                                         // 2017
+        "HLT_Mu50",
+        "HLT_TkMu50",
         "HLT_Ele115_CaloIdVT_GsfTrkIdT",
 	"HLT_PFHT800",
         "HLT_PFHT900",
