@@ -8,8 +8,8 @@ The framework is setup for running at the LPC, and saving ntuples to the LPC Tie
 
 Check out CMSSW release:
 ```
-cmsrel CMSSW_9_0_1
-cd CMSSW_9_0_1/src
+cmsrel CMSSW_9_4_4
+cd CMSSW_9_4_4/src
 cmsenv
 git cms-init
 ```
