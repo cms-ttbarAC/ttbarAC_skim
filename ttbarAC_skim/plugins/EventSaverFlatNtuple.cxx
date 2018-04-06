@@ -360,7 +360,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_eta.clear();
     m_el_phi.clear();
     m_el_e.clear();
-    m_el_iso.clear();
+    //m_el_iso.clear();
     m_el_charge.clear();
     m_el_ID_loose.clear();
     m_el_ID_medium.clear();
@@ -376,7 +376,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_el_e.push_back(  el->energy() );
 
         m_el_charge.push_back( el->charge() );
-        m_el_iso.push_back( (el->trackIso() + el->caloIso()) / el->pt() );
+        //m_el_iso.push_back( (el->trackIso() + el->caloIso()) / el->pt() );
 
         // ID
         vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];
@@ -520,8 +520,8 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("eventNumber", &m_eventNumber, "eventNumber/l");    // ulong
     m_ttree->Branch("lumiblock",   &m_lumiblock,   "lumiblock/i");      // uint
     m_ttree->Branch("rho",         &m_rho,         "rho/F");            // float
-    m_ttree->Branch("npv",         &m_npv,         "npv/I");            // int
-    m_ttree->Branch("true_pileup", &m_true_pileup, "true_pileup/I");    // int
+    m_ttree->Branch("npv",         &m_npv,         "npv/i");            // uint
+    m_ttree->Branch("true_pileup", &m_true_pileup, "true_pileup/i");    // uint
 
     // Triggers
     for (const auto& name : m_triggers){
@@ -553,8 +553,8 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8subjet0charge", &m_ljet_subjet0_charge); // vector of floats
     m_ttree->Branch("AK8subjet1pt",     &m_ljet_subjet1_pt);     // vector of floats
     m_ttree->Branch("AK8subjet1mass",   &m_ljet_subjet1_mass);   // vector of floats
-    m_ttree->Branch("AK8Subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
-    m_ttree->Branch("AK8Subjet1deepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
+    m_ttree->Branch("AK8subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
+    m_ttree->Branch("AK8subjet1deepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
     m_ttree->Branch("AK8subjet1charge", &m_ljet_subjet1_charge); // vector of floats
     m_ttree->Branch("AK8BEST_t", &m_ljet_BEST_t); // vector of floats
     m_ttree->Branch("AK8BEST_w", &m_ljet_BEST_w); // vector of floats
@@ -582,7 +582,7 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("ELeta",   &m_el_eta);    // vector of floats
     m_ttree->Branch("ELphi",   &m_el_phi);    // vector of floats
     m_ttree->Branch("ELenergy",&m_el_e);      // vector of floats
-    m_ttree->Branch("ELiso",   &m_el_iso);    // vector of ints
+    //m_ttree->Branch("ELiso",   &m_el_iso);    // vector of ints
     m_ttree->Branch("ELcharge",   &m_el_charge);        // vector of floats
     m_ttree->Branch("ELlooseID",  &m_el_ID_loose);      // vector of ints
     m_ttree->Branch("ELmediumID", &m_el_ID_medium);     // vector of ints
@@ -596,7 +596,7 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("MUphi",   &m_mu_phi);    // vector of floats
     m_ttree->Branch("MUenergy",&m_mu_e);      // vector of floats
     m_ttree->Branch("MUcharge",   &m_mu_charge);        // vector of floats
-    m_ttree->Branch("MUcorrIso",  &m_mu_iso);           // vector of ints
+    m_ttree->Branch("MUcorrIso",  &m_mu_iso);           // vector of floats
     m_ttree->Branch("MUlooseID",  &m_mu_ID_loose);      // vector of ints
     m_ttree->Branch("MUmediumID", &m_mu_ID_medium);     // vector of ints
     m_ttree->Branch("MUtightID",  &m_mu_ID_tight);      // vector of ints
