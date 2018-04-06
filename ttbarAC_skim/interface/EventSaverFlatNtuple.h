@@ -288,7 +288,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_mc_eta;
     std::vector<float> m_mc_phi;
     std::vector<float> m_mc_e;
-    std::vector<float> m_mc_pdgId;
+    std::vector<int> m_mc_pdgId;
     std::vector<float> m_mc_status;
     std::vector<int> m_mc_isHadTop;
 
