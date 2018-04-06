@@ -125,9 +125,13 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
 
 ## EVENT SAVER FLAT NTUPLE
 ## Get the sampleName (primary dataset)
+sampleName = process.source.fileNames[0]
+if sampleName.startswith("/store/"):
+    sampleName = sampleName.split("/")[4]  # try to get the primary dataset
+
 process.tree = cms.EDAnalyzer("EventSaverFlatNtuple",
     isMC = cms.bool(options.isMC),
-    sampleName = cms.string(process.source.fileNames[0]),
+    sampleName = cms.string(sampleName),
     metadataFile = cms.string("metadataFile.txt"),
     elIdFullInfoMap_Loose  = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-loose"),
     elIdFullInfoMap_Medium = cms.InputTag("egmGsfElectronIDs:cutBasedElectronID-Summer16-80X-V1-medium"),

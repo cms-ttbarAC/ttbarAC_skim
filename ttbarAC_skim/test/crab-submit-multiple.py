@@ -50,7 +50,7 @@ def main(input_datasets="crab-datasets.txt"):
         config.JobType.pluginName  = 'Analysis'
         config.JobType.psetName    = 'runSkim.py'
         config.JobType.allowUndistributedCMSSW = True
-        config.JobType.inputFiles = ['BEST_mlp.json']
+        config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt']
         if isMC:
             config.JobType.pyCfgParams = ['isMC=True']
         else:

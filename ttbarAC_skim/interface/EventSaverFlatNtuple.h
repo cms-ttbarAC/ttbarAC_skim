@@ -92,7 +92,6 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::map<std::string, float> m_XSections;        // map sample name to XSection
     std::map<std::string, float> m_KFactors;         // map sample name to KFactor
     std::map<std::string, float> m_sumOfMCWeights;   // map sample name to sum of weights
-    std::map<std::string, unsigned int> m_NEvents;   // map sample name to number of events in sample
 
 
     // Tokens
@@ -155,6 +154,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     float m_xsection;
     float m_kfactor;
     float m_sumOfWeights;
+    unsigned int m_NEvents;
 
     std::vector<float> m_jet_pt;
     std::vector<float> m_jet_eta;

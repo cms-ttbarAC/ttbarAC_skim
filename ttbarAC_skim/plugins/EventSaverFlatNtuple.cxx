@@ -29,7 +29,6 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_pileup(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("slimmedAddPileupInfo"))),
   t_beamspot(consumes<reco::BeamSpot>(edm::InputTag("offlineBeamSpot"))),
   t_conversions(consumes<reco::ConversionCollection>(edm::InputTag("reducedEgamma:reducedConversions"))),
-  t_triggerBits(consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", "HLT2"))),
   t_METFilter(consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", "RECO"))),
   t_elIdFullInfoMap_Loose(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Loose"))),
   t_elIdFullInfoMap_Medium(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Medium"))),
@@ -40,6 +39,11 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         edm::EDGetTokenT<std::vector<float>> tmp_token = consumes<std::vector<float>>(edm::InputTag("BESTProducer",name,"ttbarACskim"));
         t_BEST_products.push_back( tmp_token );
     }
+
+    bool reHLT = (t_sampleName.find("reHLT")!=std::string::npos) || (t_sampleName.find("TT_TuneCUETP8M1_13TeV-powheg-pythia8")!=std::string::npos);
+    std::string hlt = reHLT ? "HLT2" : "HLT";
+    t_triggerBits = consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", hlt));
+
 
     // Make output TTrees
     edm::Service<TFileService> fs;
@@ -63,6 +67,8 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         m_mapOfSamples.clear();
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
     }
+    bool sampInFile = (m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end());
+    std::cout << " SAMPLE NAME " << m_sampleName << ": " << sampInFile << std::endl;
 
     // Lightweight NN interface with BEST
     std::string dnnFile("");
@@ -490,6 +496,7 @@ void EventSaverFlatNtuple::endJob(){
         m_xsection = ss.XSection;
         m_kfactor  = ss.KFactor;
         m_sumOfWeights = ss.sumOfWeights;
+        m_NEvents = ss.NEvents;
     }
 
     m_metadata_ttree->Fill();
@@ -505,6 +512,7 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_metadata_ttree->Branch("xsection",       &m_xsection,     "xsection/F");      // float
     m_metadata_ttree->Branch("kfactor",        &m_kfactor,      "kfactor/F");       // float
     m_metadata_ttree->Branch("sumOfWeights",   &m_sumOfWeights, "sumOfWeights/F");  // float
+    m_metadata_ttree->Branch("NEvents",        &m_NEvents,      "NEvents/i");       // uint
 
     // Event information
     //    Don't save flags/triggers (already used in MiniAOD!)
