@@ -26,6 +26,10 @@ options.register('isMC', True,
     VarParsing.multiplicity.singleton,
     VarParsing.varType.bool,
     "Simulated data sample" )
+options.register('sampleName',"",
+    VarParsing.multiplicity.singleton,
+    VarParsing.varType.string,
+    "Name of simulated/real data sample" )
 options.parseArguments()
 
 
@@ -125,7 +129,11 @@ process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
 
 ## EVENT SAVER FLAT NTUPLE
 ## Get the sampleName (primary dataset)
-sampleName = process.source.fileNames[0]
+try:
+    sampleName = process.source.fileNames[0]
+except IndexError:
+    sampleName = options.sampleName
+
 if sampleName.startswith("/store/"):
     sampleName = sampleName.split("/")[4]  # try to get the primary dataset
 

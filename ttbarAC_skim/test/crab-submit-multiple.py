@@ -52,9 +52,9 @@ def main(input_datasets="crab-datasets.txt"):
         config.JobType.allowUndistributedCMSSW = True
         config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt']
         if isMC:
-            config.JobType.pyCfgParams = ['isMC=True']
+            config.JobType.pyCfgParams = ['isMC=True','sampleName={0}'.format(dataset)]
         else:
-            config.JobType.pyCfgParams = ['isMC=False']
+            config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(dataset)]
 
         # Data
         config.Data.splitting     = 'FileBased'
