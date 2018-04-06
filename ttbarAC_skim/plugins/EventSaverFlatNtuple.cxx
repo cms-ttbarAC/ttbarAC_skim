@@ -29,7 +29,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_pileup(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("slimmedAddPileupInfo"))),
   t_beamspot(consumes<reco::BeamSpot>(edm::InputTag("offlineBeamSpot"))),
   t_conversions(consumes<reco::ConversionCollection>(edm::InputTag("reducedEgamma:reducedConversions"))),
-  t_triggerBits(consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", "HLT"))),
+  t_triggerBits(consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", "HLT2"))),
   t_METFilter(consumes<edm::TriggerResults>(edm::InputTag("TriggerResults", "", "RECO"))),
   t_elIdFullInfoMap_Loose(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Loose"))),
   t_elIdFullInfoMap_Medium(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Medium"))),
@@ -193,10 +193,11 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_mass.push_back( jet.mass() );
         m_jet_area.push_back( jet.jetArea() );
         m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:BvsAll");
-        double deepCSV_bb = 0.0; //jet.bDiscriminator("pfDeepCSVJetTags:probbb");
-        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
+//        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
+//        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+//        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
 
+        m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         reco::Candidate::LorentzVector uncorrJet = jet.correctedP4(0);
         m_jet_uncorrPt.push_back(uncorrJet.pt());
         m_jet_uncorrE.push_back(uncorrJet.energy());
@@ -316,20 +317,22 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         auto const& subjet0 = subjets.at(0);
         auto const& subjet1 = subjets.at(1);
 
-        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
-        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
-        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
-        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
+//        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
+//        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
+//        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
+//        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
 
         m_ljet_subjet0_bdisc.push_back(  m_BEST_products["bDisc1"][nj] );
         m_ljet_subjet0_charge.push_back( m_BEST_products["qsubjet0"][nj] );
-        m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
+//        m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
+        m_ljet_subjet0_deepCSV.push_back(subjet0->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet0_pt.push_back(     subjet0->pt() );
         m_ljet_subjet0_mass.push_back(   subjet0->mass() );
 
         m_ljet_subjet1_bdisc.push_back(  m_BEST_products["bDisc2"][nj] );
         m_ljet_subjet1_charge.push_back( m_BEST_products["qsubjet1"][nj] );
-        m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
+//        m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
+        m_ljet_subjet1_deepCSV.push_back(subjet1->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet1_pt.push_back(     subjet1->pt() );
         m_ljet_subjet1_mass.push_back(   subjet1->mass() );
 
@@ -535,16 +538,16 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8tau1",   &m_ljet_tau1);   // vector of floats
     m_ttree->Branch("AK8tau2",   &m_ljet_tau2);   // vector of floats
     m_ttree->Branch("AK8tau3",   &m_ljet_tau3);   // vector of floats
-    m_ttree->Branch("AK8subjet0Pt",     &m_ljet_subjet0_pt);     // vector of floats
-    m_ttree->Branch("AK8subjet0Mass",   &m_ljet_subjet0_mass);   // vector of floats
+    m_ttree->Branch("AK8subjet0pt",     &m_ljet_subjet0_pt);     // vector of floats
+    m_ttree->Branch("AK8subjet0mass",   &m_ljet_subjet0_mass);   // vector of floats
     m_ttree->Branch("AK8subjet0bDisc",  &m_ljet_subjet0_bdisc);  // vector of floats
-    m_ttree->Branch("AK8subjet0DeepCSV",&m_ljet_subjet0_deepCSV);// vector of floats
-    m_ttree->Branch("AK8subjet0Charge", &m_ljet_subjet0_charge); // vector of floats
-    m_ttree->Branch("AK8subjet1Pt",     &m_ljet_subjet1_pt);     // vector of floats
-    m_ttree->Branch("AK8subjet1Mass",   &m_ljet_subjet1_mass);   // vector of floats
+    m_ttree->Branch("AK8subjet0deepCSV",&m_ljet_subjet0_deepCSV);// vector of floats
+    m_ttree->Branch("AK8subjet0charge", &m_ljet_subjet0_charge); // vector of floats
+    m_ttree->Branch("AK8subjet1pt",     &m_ljet_subjet1_pt);     // vector of floats
+    m_ttree->Branch("AK8subjet1mass",   &m_ljet_subjet1_mass);   // vector of floats
     m_ttree->Branch("AK8Subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
-    m_ttree->Branch("AK8Subjet1DeepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
-    m_ttree->Branch("AK8subjet1Charge", &m_ljet_subjet1_charge); // vector of floats
+    m_ttree->Branch("AK8Subjet1deepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
+    m_ttree->Branch("AK8subjet1charge", &m_ljet_subjet1_charge); // vector of floats
     m_ttree->Branch("AK8BEST_t", &m_ljet_BEST_t); // vector of floats
     m_ttree->Branch("AK8BEST_w", &m_ljet_BEST_w); // vector of floats
     m_ttree->Branch("AK8BEST_z", &m_ljet_BEST_z); // vector of floats
@@ -562,7 +565,7 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK4mass", &m_jet_mass);   // vector of floats
     m_ttree->Branch("AK4area", &m_jet_area);   // vector of floats
     m_ttree->Branch("AK4bDisc",&m_jet_bdisc);  // vector of floats
-    m_ttree->Branch("AK4DeepCSV",&m_jet_deepCSV);  // vector of floats
+    m_ttree->Branch("AK4deepCSV",  &m_jet_deepCSV);   // vector of floats
     m_ttree->Branch("AK4uncorrPt", &m_jet_uncorrPt);  // vector of floats
     m_ttree->Branch("AK4uncorrE",  &m_jet_uncorrE);   // vector of floats
 
