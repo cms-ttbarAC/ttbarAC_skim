@@ -3,8 +3,17 @@ Created 3 April
 
 Script to submit multiple CRAB jobs
  https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookCRAB3Tutorial#1_CRAB_configuration_file_to_run
+
+To run:
+  cd test/
+  python crab-submit-multiple.py <datasets>
+
+where <datasets> is a text file that contains the datasets you want to process.
+See 'test/crab-datasets-mc.txt' for an example.
+If no argument is provided, a default option is selected
 """
 import os
+import sys
 from multiprocessing import Process
 import Analysis.CyMiniAna.util as util
 
@@ -38,7 +47,11 @@ def main(input_datasets="crab-datasets.txt"):
         if name.startswith("SingleElectron") or name.startswith("SingleMuon") or name.startswith("JetHT"):
             isMC = False
 
-        print '  --> Added {0}; isMC = {1}'.format(id,isMC)
+        primary_dataset = dataset.split('/')[1]
+
+        print '  --> Added {0}'.format(id)
+        print '      - isMC = {0}'.format(isMC)
+        print '      - primary dataset = {0}'.format(primary_dataset)
 
         # General
         config.General.requestName = 'ttbarAC_'+name
@@ -52,9 +65,9 @@ def main(input_datasets="crab-datasets.txt"):
         config.JobType.allowUndistributedCMSSW = True
         config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt']
         if isMC:
-            config.JobType.pyCfgParams = ['isMC=True','sampleName={0}'.format(dataset)]
+            config.JobType.pyCfgParams = ['isMC=True','sampleName={0}'.format(primary_dataset)]
         else:
-            config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(dataset)]
+            config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(primary_dataset)]
 
         # Data
         config.Data.splitting     = 'FileBased'
@@ -78,4 +91,7 @@ def main(input_datasets="crab-datasets.txt"):
 
 
 if __name__=='__main__':
-    main("crab-datasets-test.txt")
+    if len(sys.argv)>1:
+        main(sys.argv[1])    # pass datasets file as command line argument
+    else:
+        main("crab-datasets-test.txt")
