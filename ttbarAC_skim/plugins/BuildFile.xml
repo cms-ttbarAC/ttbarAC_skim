@@ -12,6 +12,8 @@
 <use name="DataFormats/Provenance"/>
 <use name="DataFormats/PatCandidates"/>
 
+<use name="fastjet"/>
+<use name="fastjet-contrib"/>
 <use name="clhep"/>
 <use name="lwtnn/lwtnn"/>
 <use name="Analysis/CyMiniAna"/>

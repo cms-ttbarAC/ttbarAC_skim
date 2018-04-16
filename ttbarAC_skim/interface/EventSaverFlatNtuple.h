@@ -25,6 +25,7 @@
 #include "DataFormats/JetReco/interface/GenJet.h"
 #include "DataFormats/JetReco/interface/PFJet.h"
 #include "DataFormats/JetReco/interface/PFJetCollection.h"
+#include "DataFormats/JetReco/interface/Jet.h"
 #include "DataFormats/PatCandidates/interface/Jet.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
@@ -47,6 +48,14 @@
 #include "DataFormats/Candidate/interface/Candidate.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
+#include <fastjet/JetDefinition.hh>
+#include <fastjet/PseudoJet.hh>
+#include <fastjet/tools/Filter.hh>
+#include <fastjet/ClusterSequence.hh>
+#include <fastjet/ActiveAreaSpec.hh>
+#include <fastjet/ClusterSequenceArea.hh>
+#include <fastjet/contrib/Njettiness.hh>
+
 #include "TROOT.h"
 #include "TFile.h"
 #include "TTree.h"
@@ -68,6 +77,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     bool checkTopDecay(const reco::Candidate& daughter) const;
     bool passAK8( const pat::Jet& j, const int index, const float& SDmass) const;
     bool jetID( const pat::Jet& j ) const;
+    float getTau( unsigned int N, const edm::Ptr<reco::Jet>& ij ) const;
 
   private:
 
@@ -78,6 +88,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     TTree* m_ttree;                // physics information
     TTree* m_metadata_ttree;       // metadata
     TH1D* m_hist_cutflow;
+
+    std::auto_ptr<fastjet::contrib::Njettiness> m_nsub;
 
     lwt::LightweightNeuralNetwork* m_lwtnn;
     std::map<std::string,std::vector<double>> m_BEST_products;
@@ -194,11 +206,17 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<int> m_ljet_ID_tightlepveto;
     std::vector<float> m_ljet_subjet0_pt;
     std::vector<float> m_ljet_subjet0_mass;
+    std::vector<float> m_ljet_subjet0_tau1;
+    std::vector<float> m_ljet_subjet0_tau2;
+    std::vector<float> m_ljet_subjet0_tau3;
     std::vector<float> m_ljet_subjet0_bdisc;
     std::vector<float> m_ljet_subjet0_deepCSV;
     std::vector<float> m_ljet_subjet0_charge;
     std::vector<float> m_ljet_subjet1_pt;
     std::vector<float> m_ljet_subjet1_mass;
+    std::vector<float> m_ljet_subjet1_tau1;
+    std::vector<float> m_ljet_subjet1_tau2;
+    std::vector<float> m_ljet_subjet1_tau3;
     std::vector<float> m_ljet_subjet1_bdisc;
     std::vector<float> m_ljet_subjet1_deepCSV;
     std::vector<float> m_ljet_subjet1_charge;

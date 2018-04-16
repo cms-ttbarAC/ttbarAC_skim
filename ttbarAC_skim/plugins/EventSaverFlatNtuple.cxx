@@ -70,6 +70,18 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     bool sampInFile = (m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end());
     std::cout << " SAMPLE NAME " << m_sampleName << ": " << sampInFile << std::endl;
 
+    // N-subjettiness for softdrop subjets
+    fastjet::contrib::NormalizedMeasure nsub_normalizedMeasure(1.0,0.8);
+    fastjet::contrib::OnePass_KT_Axes nsub_onepass_kt_axes;
+    fastjet::contrib::MeasureDefinition const* measureDef = nullptr;
+    fastjet::contrib::AxesDefinition const* axesDef = nullptr;
+
+    measureDef = &nsub_normalizedMeasure;
+    axesDef    = &nsub_onepass_kt_axes;
+
+    m_nsub = std::auto_ptr<fastjet::contrib::Njettiness> ( new fastjet::contrib::Njettiness( *axesDef, *measureDef ) );
+
+
     // Lightweight NN interface with BEST
     std::string dnnFile("");
 
@@ -230,11 +242,17 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_BEST_class.clear();
     m_ljet_subjet0_pt.clear();
     m_ljet_subjet0_mass.clear();
+    m_ljet_subjet0_tau1.clear();
+    m_ljet_subjet0_tau2.clear();
+    m_ljet_subjet0_tau3.clear();
     m_ljet_subjet0_bdisc.clear();
     m_ljet_subjet0_deepCSV.clear();
     m_ljet_subjet0_charge.clear();
     m_ljet_subjet1_pt.clear();
     m_ljet_subjet1_mass.clear();
+    m_ljet_subjet1_tau1.clear();
+    m_ljet_subjet1_tau2.clear();
+    m_ljet_subjet1_tau3.clear();
     m_ljet_subjet1_bdisc.clear();
     m_ljet_subjet1_deepCSV.clear();
     m_ljet_subjet1_charge.clear();
@@ -325,22 +343,31 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
 //        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
 //        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
-//        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
-//        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
 
         m_ljet_subjet0_bdisc.push_back(  m_BEST_products["bDisc1"][nj] );
         m_ljet_subjet0_charge.push_back( m_BEST_products["qsubjet0"][nj] );
-//        m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
+        //m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
         m_ljet_subjet0_deepCSV.push_back(subjet0->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
-        m_ljet_subjet0_pt.push_back(     subjet0->pt() );
-        m_ljet_subjet0_mass.push_back(   subjet0->mass() );
+        m_ljet_subjet0_pt.push_back(   subjet0->pt() );
+        m_ljet_subjet0_mass.push_back( subjet0->mass() );
+        // add some substructure to distinguish W/b subjets
+        m_ljet_subjet0_tau1.push_back( getTau(1,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
+        m_ljet_subjet0_tau2.push_back( getTau(2,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
+        m_ljet_subjet0_tau3.push_back( getTau(3,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
+
+//        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
+//        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
 
         m_ljet_subjet1_bdisc.push_back(  m_BEST_products["bDisc2"][nj] );
         m_ljet_subjet1_charge.push_back( m_BEST_products["qsubjet1"][nj] );
-//        m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
+        //m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
         m_ljet_subjet1_deepCSV.push_back(subjet1->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
-        m_ljet_subjet1_pt.push_back(     subjet1->pt() );
-        m_ljet_subjet1_mass.push_back(   subjet1->mass() );
+        m_ljet_subjet1_pt.push_back(   subjet1->pt() );
+        m_ljet_subjet1_mass.push_back( subjet1->mass() );
+        // add some substructure to distinguish W/b subjets
+        m_ljet_subjet1_tau1.push_back( getTau(1,subjet1) );  // subjet1->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
+        m_ljet_subjet1_tau2.push_back( getTau(2,subjet1) );  // subjet2->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
+        m_ljet_subjet1_tau3.push_back( getTau(3,subjet1) );  // subjet3->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
 
         reco::Candidate::LorentzVector uncorrJet = ljet.correctedP4(0);
         m_ljet_uncorrPt.push_back(uncorrJet.pt());
@@ -548,11 +575,17 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8tau3",   &m_ljet_tau3);   // vector of floats
     m_ttree->Branch("AK8subjet0pt",     &m_ljet_subjet0_pt);     // vector of floats
     m_ttree->Branch("AK8subjet0mass",   &m_ljet_subjet0_mass);   // vector of floats
+    m_ttree->Branch("AK8subjet0tau1",   &m_ljet_subjet0_tau1);   // vector of floats
+    m_ttree->Branch("AK8subjet0tau2",   &m_ljet_subjet0_tau2);   // vector of floats
+    m_ttree->Branch("AK8subjet0tau3",   &m_ljet_subjet0_tau3);   // vector of floats
     m_ttree->Branch("AK8subjet0bDisc",  &m_ljet_subjet0_bdisc);  // vector of floats
     m_ttree->Branch("AK8subjet0deepCSV",&m_ljet_subjet0_deepCSV);// vector of floats
     m_ttree->Branch("AK8subjet0charge", &m_ljet_subjet0_charge); // vector of floats
     m_ttree->Branch("AK8subjet1pt",     &m_ljet_subjet1_pt);     // vector of floats
     m_ttree->Branch("AK8subjet1mass",   &m_ljet_subjet1_mass);   // vector of floats
+    m_ttree->Branch("AK8subjet1tau1",   &m_ljet_subjet1_tau1);   // vector of floats
+    m_ttree->Branch("AK8subjet1tau2",   &m_ljet_subjet1_tau2);   // vector of floats
+    m_ttree->Branch("AK8subjet1tau3",   &m_ljet_subjet1_tau3);   // vector of floats
     m_ttree->Branch("AK8subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
     m_ttree->Branch("AK8subjet1deepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
     m_ttree->Branch("AK8subjet1charge", &m_ljet_subjet1_charge); // vector of floats
@@ -668,6 +701,27 @@ bool EventSaverFlatNtuple::jetID( const pat::Jet& j ) const {
         nch > 0;
 
     return goodJet;
+}
+
+
+float EventSaverFlatNtuple::getTau( unsigned int N, const edm::Ptr<reco::Jet>& ij ) const {
+    /* Calculate n-subjettiness for soft drop subjets.
+       Loop over constituents of the soft drop subjet (just access the daughters).
+       Following existing setup in CMSSW for 94X (see links below).
+       It appears this can be done with the toolbox, but I'm not sure what else comes with that
+
+        https://github.com/cms-jet/JetToolbox/blob/jetToolbox_94X/python/jetToolbox_cff.py#L798
+        https://github.com/cms-sw/cmssw/blob/master/RecoJets/JetProducers/python/nJettinessAdder_cfi.py
+        https://github.com/cms-sw/cmssw/blob/master/RecoJets/JetProducers/plugins/NjettinessAdder.cc
+    */
+    std::vector<fastjet::PseudoJet> FJparticles;
+    for (unsigned k=0,size=ij->numberOfDaughters(); k<size; ++k){
+        const reco::CandidatePtr & dp = ij->daughterPtr(k);
+        if ( dp.isNonnull() && dp.isAvailable() )
+            FJparticles.push_back( fastjet::PseudoJet( dp->px(), dp->py(), dp->pz(), dp->energy() ) );
+    }
+
+    return m_nsub->getTau(N, FJparticles);
 }
 
 
