@@ -78,7 +78,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     bool checkTopDecay(const reco::Candidate& daughter) const;
     bool passAK8( const pat::Jet& j, const int index, const float& SDmass) const;
     bool jetID( const pat::Jet& j ) const;
-    float getTau( unsigned int N, const edm::Ptr<reco::Jet>& ij ) const;
+    std::vector<float> charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx=0 ) const;
+    std::vector<float> getTau( unsigned int N, const reco::Jet& ij ) const;
     int findPartonIndex( const std::vector<reco::GenParticle>& items, const reco::Candidate& item ) const;
 
   private:
@@ -210,6 +211,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_BEST_j;
     std::vector<int> m_ljet_BEST_class;
     std::vector<float> m_ljet_charge;
+    std::vector<float> m_ljet_chargeSD;
+    std::vector<float> m_ljet_charge3;
+    std::vector<float> m_ljet_charge10;
     std::vector<float> m_ljet_SDmass;
     std::vector<int> m_ljet_ID_loose;
     std::vector<int> m_ljet_ID_medium;
@@ -223,6 +227,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet0_bdisc;
     std::vector<float> m_ljet_subjet0_deepCSV;
     std::vector<float> m_ljet_subjet0_charge;
+    std::vector<float> m_ljet_subjet0_charge3;
+    std::vector<float> m_ljet_subjet0_charge10;
     std::vector<float> m_ljet_subjet1_pt;
     std::vector<float> m_ljet_subjet1_mass;
     std::vector<float> m_ljet_subjet1_tau1;
@@ -231,6 +237,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet1_bdisc;
     std::vector<float> m_ljet_subjet1_deepCSV;
     std::vector<float> m_ljet_subjet1_charge;
+    std::vector<float> m_ljet_subjet1_charge3;
+    std::vector<float> m_ljet_subjet1_charge10;
     std::vector<float> m_ljet_uncorrPt;
     std::vector<float> m_ljet_uncorrE;
 
