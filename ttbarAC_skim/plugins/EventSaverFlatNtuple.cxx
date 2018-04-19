@@ -21,9 +21,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_electrons(consumes<edm::View<pat::Electron>>(edm::InputTag("slimmedElectrons","",""))),
   t_jets(consumes<pat::JetCollection>(edm::InputTag("selectedAK4Jets", "", "ttbarACskim"))),
   t_ljets(consumes<pat::JetCollection>(edm::InputTag("BESTProducer", "savedJets", "ttbarACskim"))),
-  t_truth_ljets(consumes<reco::GenJetCollection>(edm::InputTag("slimmedGenJetsAK8"))),
   t_met(consumes<pat::METCollection>(edm::InputTag("selectedMET", "", "ttbarACskim"))),
-  t_genEvtInfoProd(consumes<std::vector<reco::GenParticle>>(edm::InputTag("selectedGenParticles", "", "ttbarACskim"))),
   t_rho(consumes<double>(edm::InputTag("fixedGridRhoFastjetAll"))),
   t_vertices(consumes<std::vector<reco::Vertex> >(edm::InputTag("offlineSlimmedPrimaryVertices"))),
   t_pileup(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("slimmedAddPileupInfo"))),
@@ -34,10 +32,17 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_elIdFullInfoMap_Medium(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Medium"))),
   t_elIdFullInfoMap_Tight(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Tight"))){
   //t_elIdFullInfoMap_HEEP(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_HEEP"))){
+    m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
+
     t_BEST_products.clear();
     for (const auto& name : m_BEST_variables){
         edm::EDGetTokenT<std::vector<float>> tmp_token = consumes<std::vector<float>>(edm::InputTag("BESTProducer",name,"ttbarACskim"));
         t_BEST_products.push_back( tmp_token );
+    }
+
+    if (m_isMC){
+        t_truth_ljets = consumes<reco::GenJetCollection>(edm::InputTag("slimmedGenJetsAK8"));
+        t_genEvtInfoProd = consumes<std::vector<reco::GenParticle>>(edm::InputTag("selectedGenParticles", "", "ttbarACskim"));
     }
 
     bool reHLT = (t_sampleName.find("reHLT")!=std::string::npos) || (t_sampleName.find("TT_TuneCUETP8M1_13TeV-powheg-pythia8")!=std::string::npos);
@@ -55,12 +60,19 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     m_hist_cutflow->GetXaxis()->SetBinLabel(2,"PRIMARYVTX");
     m_hist_cutflow->GetXaxis()->SetBinLabel(3,"AK8JETS");
 
+    // TH1D
+    m_hist_truth_dy = fs->make<TH1D>( "truth_dy","truth_dy",2000,-10,10);  // (unbounded, likely between -5,5)
+
+    // TH2D (x,y)
+    m_hist_truth_mtt_dy  = fs->make<TH2D>( "truth_mtt_dy", "truth_mtt_dy", 6000,0,6000, 2000,-10,10);   // (unbounded, likely < 5000)
+    m_hist_truth_pttt_dy = fs->make<TH2D>( "truth_pttt_dy","truth_pttt_dy",1000,0,1000, 2000,-10,10);   // (unbounded, likely < 500)
+    m_hist_truth_beta_dy = fs->make<TH2D>( "truth_beta_dy","truth_beta_dy",1000,0,1,    2000,-10,10);   // (0,1)
+    m_hist_truth_ytt_dy  = fs->make<TH2D>( "truth_ytt_dy", "truth_ytt_dy", 2000,0,10,   2000,-10,10);   // (unbounded, likely between -5,5 -> absolute value)
+
     initialize_branches();
 
 
     // options set by config
-    m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
-
     cma::setVerboseLevel("WARNING");
     m_sampleName = t_sampleName;
     if (m_isMC){
@@ -68,7 +80,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
     }
     bool sampInFile = (m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end());
-    std::cout << " SAMPLE NAME " << m_sampleName << ": " << sampInFile << std::endl;
+    std::cout << " SAMPLE NAME " << m_sampleName << ": Found = " << sampInFile << std::endl;
 
     // N-subjettiness for softdrop subjets
     fastjet::contrib::NormalizedMeasure nsub_normalizedMeasure(1.0,0.8);
@@ -119,11 +131,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_electrons, m_electrons );
     event.getByToken( t_muons, m_muons );
     event.getByToken( t_jets, m_jets );
-    //event.getByToken( t_truth_jets, m_truth_jets );
-    event.getByToken( t_truth_ljets, m_truth_ljets );
     event.getByToken( t_met, m_met );
     event.getByToken( t_rho, h_rho );
-    event.getByToken( t_genEvtInfoProd,h_genEvtInfoProd );
     event.getByToken( t_vertices,h_vertices );
     event.getByToken( t_pileup,h_pileup );
 
@@ -135,7 +144,115 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_elIdFullInfoMap_Tight,  h_cutflow_elId_Tight );
 //    event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
 
+    // Start with filling cutflow
     m_hist_cutflow->Fill(0.5);  // INITIAL
+
+    // Check generator-level information first
+    // Fill ttbar truth distributions (for unfolding) 
+    m_mc_pt.clear();
+    m_mc_eta.clear();
+    m_mc_phi.clear();
+    m_mc_e.clear();
+    m_mc_pdgId.clear();
+    m_mc_status.clear();
+    m_mc_parent_idx.clear();
+    m_mc_child0_idx.clear();
+    m_mc_child1_idx.clear();
+    m_mc_isHadTop.clear();
+
+    if (m_isMC){
+        event.getByToken( t_truth_ljets, m_truth_ljets );
+        event.getByToken( t_genEvtInfoProd,h_genEvtInfoProd );
+
+        // create temporary vector of genParticles to store only a few particles
+        std::vector<reco::GenParticle> genCollection_tmp;
+        std::unique_ptr<std::vector<reco::GenParticle> > genCollection( new std::vector<reco::GenParticle> (*h_genEvtInfoProd) );
+        for (unsigned int j=0, size=genCollection->size(); j<size; j++){
+            reco::GenParticle particle = genCollection->at(j);
+
+            unsigned int absPdgId = std::abs( particle.pdgId() );
+            int parent_pdgId(0);
+            if (particle.numberOfMothers()>0 && particle.mother(0)!=nullptr)
+                parent_pdgId = particle.mother(0)->pdgId();
+
+            // Check that this particle has a PDGID of interest, or that its parent does
+            if ( std::find(m_goodIDs.begin(), m_goodIDs.end(), absPdgId) == m_goodIDs.end() &&
+                 std::find(m_goodIDs.begin(), m_goodIDs.end(), std::abs(parent_pdgId)) == m_goodIDs.end() )
+                continue;
+
+            genCollection_tmp.push_back(particle);
+        }
+
+        TLorentzVector top;
+        TLorentzVector antitop;
+        // Now loop over the slimmed container of gen particles to save them and references to parent/children
+        for (const auto& particle : genCollection_tmp){
+            m_mc_pt.push_back(particle.pt());
+            m_mc_eta.push_back(particle.eta());
+            m_mc_phi.push_back(particle.phi());
+            m_mc_e.push_back(particle.energy());
+            m_mc_pdgId.push_back(particle.pdgId());
+            m_mc_status.push_back(particle.status());
+
+            // save the index (in the 'goodMCs' vector) of the parent/child (if they exist)
+            int parent_idx(-1);
+            int child0_idx(-1);
+            int child1_idx(-1);
+
+            if (particle.numberOfMothers()>0){
+                auto parent = particle.mother(0);
+                parent_idx  = findPartonIndex(genCollection_tmp,*parent);
+            }
+
+            if (particle.numberOfDaughters()>0){
+                auto child0 = particle.daughter(0);
+                child0_idx  = findPartonIndex(genCollection_tmp,*child0);
+                if (particle.numberOfDaughters()>1){
+                    auto child1 = particle.daughter(1);
+                    child1_idx  = findPartonIndex(genCollection_tmp,*child1);
+                }
+            }
+
+            m_mc_parent_idx.push_back( parent_idx );
+            m_mc_child0_idx.push_back( child0_idx );
+            m_mc_child1_idx.push_back( child1_idx );
+
+            unsigned int isHadTop(0);
+            if (std::abs(particle.pdgId())==6 && particle.numberOfDaughters()==2){
+                auto* daughter1 = particle.daughter(0);
+                auto* daughter2 = particle.daughter(1);
+
+                if (std::abs(daughter1->pdgId()) == 24)
+                    isHadTop = checkTopDecay(*daughter1);
+                if (std::abs(daughter2->pdgId()) == 24)
+                    isHadTop = checkTopDecay(*daughter2);
+
+                if (particle.pdgId()>0)
+                    top.SetPtEtaPhiE( particle.pt(), particle.eta(), particle.phi(), particle.energy() );
+                else
+                    antitop.SetPtEtaPhiE( particle.pt(), particle.eta(), particle.phi(), particle.energy() );
+
+            }
+
+            m_mc_isHadTop.push_back( isHadTop );
+        } //  end loop over slimmed collection of gen particles
+
+        if (top.Pt()>1 && antitop.Pt()>1){
+            TLorentzVector ttbar = top+antitop;
+            double dy   = std::abs(top.Rapidity()) - std::abs(antitop.Rapidity());
+            double mtt  = ttbar.M();
+            double pttt = ttbar.Pt();
+            double ytt  = std::abs(ttbar.Rapidity());
+            double beta = std::abs(top.Pz() + antitop.Pz()) / (top.E() + antitop.E());
+
+            m_hist_truth_dy->Fill(dy);
+            m_hist_truth_mtt_dy->Fill(mtt,dy);
+            m_hist_truth_pttt_dy->Fill(pttt,dy);
+            m_hist_truth_beta_dy->Fill(beta,dy);
+            m_hist_truth_ytt_dy->Fill(ytt,dy);
+         }
+   } // end if isMC
+
 
     // Set branch values
     m_runNumber   = event.id().run();
@@ -233,6 +350,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_tau2.clear();
     m_ljet_tau3.clear();
     m_ljet_charge.clear();
+    m_ljet_chargeSD.clear();
+    m_ljet_charge3.clear();
+    m_ljet_charge10.clear();
     m_ljet_SDmass.clear();
     m_ljet_BEST_t.clear();
     m_ljet_BEST_w.clear();
@@ -248,6 +368,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_subjet0_bdisc.clear();
     m_ljet_subjet0_deepCSV.clear();
     m_ljet_subjet0_charge.clear();
+    m_ljet_subjet0_charge3.clear();
+    m_ljet_subjet0_charge10.clear();
     m_ljet_subjet1_pt.clear();
     m_ljet_subjet1_mass.clear();
     m_ljet_subjet1_tau1.clear();
@@ -256,6 +378,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_subjet1_bdisc.clear();
     m_ljet_subjet1_deepCSV.clear();
     m_ljet_subjet1_charge.clear();
+    m_ljet_subjet1_charge3.clear();
+    m_ljet_subjet1_charge10.clear();
     m_ljet_uncorrPt.clear();
     m_ljet_uncorrE.clear();
     m_HTAK8 = 0;
@@ -337,9 +461,40 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_BEST_class.push_back( particleID );
 
         // Subjet information (soft drop produces 2 subjets)
-        auto const& subjets = ljet.subjets();
-        auto const& subjet0 = subjets.at(0);
-        auto const& subjet1 = subjets.at(1);
+        auto subjets = ljet.subjets();
+        auto subjet0 = subjets.at(0);
+        auto subjet1 = subjets.at(1);
+
+
+        // Calculate some extra jet charges
+        std::vector<float> kappas = {0.3,1.0,0.6};                    // nominal = 0.6, re-calculate to compare
+
+        std::vector<float> subjet0_q = charge( *subjet0, kappas );    // first subjet
+        std::vector<float> subjet1_q = charge( *subjet1, kappas );    // second subjet
+        std::vector<float> ljet_q    = charge( ljet, kappas, 2 );     // non-softdrop constituents
+
+        // -- jet charge due to only the constituents in the soft drop subjet
+        float softDropOnly_q(0.0);
+        softDropOnly_q = subjet0_q.at(2) + subjet1_q.at(2);
+        TLorentzVector softdrop0;
+        softdrop0.SetPtEtaPhiE( subjet0->pt(), subjet0->eta(), subjet0->phi(), subjet0->energy() );
+        TLorentzVector softdrop1;
+        softdrop1.SetPtEtaPhiE( subjet1->pt(), subjet1->eta(), subjet1->phi(), subjet1->energy() );
+        float softdrop_pt_w = pow( (softdrop0+softdrop1).Pt(), 0.6);
+        softDropOnly_q /= softdrop_pt_w;
+        m_ljet_chargeSD.push_back( softDropOnly_q );
+
+        // Normalize pt-weighted sum by the weighted pt of the jet
+        for (unsigned int k=0,size=kappas.size(); k<size; k++){
+            ljet_q.at(k)    += subjet0_q.at(k) + subjet1_q.at(k);     // include soft-drop components
+
+            ljet_q.at(k)    /= pow( ljet.pt(),kappas.at(k) );
+            subjet0_q.at(k) /= pow( subjet0->pt(),kappas.at(k) );
+            subjet1_q.at(k) /= pow( subjet1->pt(),kappas.at(k) );
+        }
+        m_ljet_charge3.push_back( subjet0_q.at(0) );
+        m_ljet_charge10.push_back( subjet1_q.at(1) );
+
 
 //        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
 //        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
@@ -350,10 +505,14 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_subjet0_deepCSV.push_back(subjet0->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet0_pt.push_back(   subjet0->pt() );
         m_ljet_subjet0_mass.push_back( subjet0->mass() );
+        m_ljet_subjet0_charge3.push_back(subjet0_q.at(0) );   // jet charge with kappa=0.3
+        m_ljet_subjet0_charge10.push_back(subjet0_q.at(1) );  // jet charge with kappa=1.0
         // add some substructure to distinguish W/b subjets
-        m_ljet_subjet0_tau1.push_back( getTau(1,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
-        m_ljet_subjet0_tau2.push_back( getTau(2,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
-        m_ljet_subjet0_tau3.push_back( getTau(3,subjet0) );  // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
+        std::vector<float> taus = getTau(3,*subjet0);
+        m_ljet_subjet0_tau1.push_back( taus.at(0) );    // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
+        m_ljet_subjet0_tau2.push_back( taus.at(1) );    // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
+        m_ljet_subjet0_tau3.push_back( taus.at(2) );    // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
+
 
 //        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
 //        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
@@ -364,11 +523,15 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_subjet1_deepCSV.push_back(subjet1->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet1_pt.push_back(   subjet1->pt() );
         m_ljet_subjet1_mass.push_back( subjet1->mass() );
+        m_ljet_subjet1_charge3.push_back( subjet1_q.at(0) );  // jet charge with kappa=0.3
+        m_ljet_subjet1_charge10.push_back( subjet1_q.at(1) ); // jet charge with kappa=1.0
         // add some substructure to distinguish W/b subjets
-        m_ljet_subjet1_tau1.push_back( getTau(1,subjet1) );  // subjet1->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
-        m_ljet_subjet1_tau2.push_back( getTau(2,subjet1) );  // subjet2->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
-        m_ljet_subjet1_tau3.push_back( getTau(3,subjet1) );  // subjet3->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
+        taus = getTau(3,*subjet1);
+        m_ljet_subjet1_tau1.push_back( taus.at(0) );    // subjet1->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau1")
+        m_ljet_subjet1_tau2.push_back( taus.at(1) );    // subjet2->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau2")
+        m_ljet_subjet1_tau3.push_back( taus.at(2) );    // subjet3->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
 
+        // save 'uncorrected' information in case we need to redo the JECs offline
         reco::Candidate::LorentzVector uncorrJet = ljet.correctedP4(0);
         m_ljet_uncorrPt.push_back(uncorrJet.pt());
         m_ljet_uncorrE.push_back(uncorrJet.energy());
@@ -381,6 +544,30 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_hist_cutflow->Fill(2.5);    // AK8Jets
 
 
+    // Truth AK8
+    m_truth_ljet_pt.clear();
+    m_truth_ljet_eta.clear();
+    m_truth_ljet_phi.clear();
+    m_truth_ljet_mass.clear();
+    m_truth_ljet_tau1.clear();
+    m_truth_ljet_tau2.clear();
+    m_truth_ljet_tau3.clear();
+    m_truth_ljet_SDmass.clear();
+
+    if (m_isMC){
+        for (const auto& ljet : *m_truth_ljets.product()){
+            m_truth_ljet_pt.push_back(  ljet.pt());
+            m_truth_ljet_eta.push_back( ljet.eta());
+            m_truth_ljet_phi.push_back( ljet.phi());
+            m_truth_ljet_mass.push_back(ljet.mass());
+
+//            m_truth_ljet_SDmass.push_back(ljet.userFloat("ak8PFJetsCHSSoftDropMass"));
+            std::vector<float> taus = getTau(3,ljet);
+            m_truth_ljet_tau1.push_back( taus.at(0) );  // "NjettinessAK8CHS:tau1"
+            m_truth_ljet_tau2.push_back( taus.at(1) );  // "NjettinessAK8CHS:tau2"
+            m_truth_ljet_tau3.push_back( taus.at(2) );  // "NjettinessAK8CHS:tau3"
+        } // end loop over truth AK8
+    } 
 
     // Leptons
     m_el_pt.clear();
@@ -475,35 +662,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_met_met = (*m_met.product())[0].pt();
     m_met_phi = (*m_met.product())[0].phi();
 
-
-    if (m_isMC){
-        m_mc_pt.clear();
-        m_mc_eta.clear();
-        m_mc_phi.clear();
-        m_mc_e.clear();
-        m_mc_pdgId.clear();
-        m_mc_status.clear();
-        m_mc_isHadTop.clear();
-
-        for (const auto& particle: *h_genEvtInfoProd.product()){
-            if (std::abs(particle.pdgId())==6 && particle.numberOfDaughters()==2){
-                m_mc_pt.push_back(particle.pt());
-                m_mc_eta.push_back(particle.eta());
-                m_mc_phi.push_back(particle.phi());
-                m_mc_e.push_back(particle.energy());
-                m_mc_pdgId.push_back(particle.pdgId());
-                m_mc_status.push_back(particle.status());
-
-                auto* daughter1 = particle.daughter(0);
-                auto* daughter2 = particle.daughter(1);
-                if (std::abs(daughter1->pdgId()) == 24)
-                    m_mc_isHadTop.push_back( checkTopDecay(*daughter1) );
-                if (std::abs(daughter2->pdgId()) == 24)
-                    m_mc_isHadTop.push_back( checkTopDecay(*daughter2) );
-            }
-        }
-    } // end if isMC
-
     // Fill output tree
     m_ttree->Fill();
 
@@ -517,7 +675,9 @@ void EventSaverFlatNtuple::endJob(){
     */
     m_xsection = 1;
     m_kfactor  = 1;
+    m_NEvents  = 1;
     m_sumOfWeights = 1;
+
     if (m_isMC && m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end()){
         Sample ss = m_mapOfSamples.at(m_sampleName);
         m_xsection = ss.XSection;
@@ -569,6 +729,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8mass",   &m_ljet_mass);   // vector of floats
     m_ttree->Branch("AK8area",   &m_ljet_area);   // vector of floats
     m_ttree->Branch("AK8charge", &m_ljet_charge); // vector of floats
+    m_ttree->Branch("AK8chargeSD", &m_ljet_chargeSD); // vector of floats
+    m_ttree->Branch("AK8charge3",  &m_ljet_charge3);  // vector of floats
+    m_ttree->Branch("AK8charge10", &m_ljet_charge10); // vector of floats
     m_ttree->Branch("AK8SDmass", &m_ljet_SDmass); // vector of floats
     m_ttree->Branch("AK8tau1",   &m_ljet_tau1);   // vector of floats
     m_ttree->Branch("AK8tau2",   &m_ljet_tau2);   // vector of floats
@@ -581,6 +744,8 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8subjet0bDisc",  &m_ljet_subjet0_bdisc);  // vector of floats
     m_ttree->Branch("AK8subjet0deepCSV",&m_ljet_subjet0_deepCSV);// vector of floats
     m_ttree->Branch("AK8subjet0charge", &m_ljet_subjet0_charge); // vector of floats
+    m_ttree->Branch("AK8subjet0charge3",  &m_ljet_subjet0_charge3);  // vector of floats
+    m_ttree->Branch("AK8subjet0charge10", &m_ljet_subjet0_charge10); // vector of floats
     m_ttree->Branch("AK8subjet1pt",     &m_ljet_subjet1_pt);     // vector of floats
     m_ttree->Branch("AK8subjet1mass",   &m_ljet_subjet1_mass);   // vector of floats
     m_ttree->Branch("AK8subjet1tau1",   &m_ljet_subjet1_tau1);   // vector of floats
@@ -589,6 +754,8 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8subjet1bDisc",  &m_ljet_subjet1_bdisc);  // vector of floats
     m_ttree->Branch("AK8subjet1deepCSV",&m_ljet_subjet1_deepCSV);// vector of floats
     m_ttree->Branch("AK8subjet1charge", &m_ljet_subjet1_charge); // vector of floats
+    m_ttree->Branch("AK8subjet1charge3",  &m_ljet_subjet1_charge3);  // vector of floats
+    m_ttree->Branch("AK8subjet1charge10", &m_ljet_subjet1_charge10); // vector of floats
     m_ttree->Branch("AK8BEST_t", &m_ljet_BEST_t); // vector of floats
     m_ttree->Branch("AK8BEST_w", &m_ljet_BEST_w); // vector of floats
     m_ttree->Branch("AK8BEST_z", &m_ljet_BEST_z); // vector of floats
@@ -597,6 +764,16 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8BEST_class", &m_ljet_BEST_class); // vector of floats
     m_ttree->Branch("AK8uncorrPt", &m_ljet_uncorrPt);  // vector of floats
     m_ttree->Branch("AK8uncorrE",  &m_ljet_uncorrE);   // vector of floats
+
+    m_ttree->Branch("AK8truth_pt",     &m_truth_ljet_pt);     // vector of floats
+    m_ttree->Branch("AK8truth_eta",    &m_truth_ljet_eta);    // vector of floats
+    m_ttree->Branch("AK8truth_phi",    &m_truth_ljet_phi);    // vector of floats
+    m_ttree->Branch("AK8truth_mass",   &m_truth_ljet_mass);   // vector of floats
+    m_ttree->Branch("AK8truth_charge", &m_truth_ljet_charge); // vector of floats
+    //m_ttree->Branch("AK8truth_SDmass", &m_truth_ljet_SDmass); // vector of floats  // not available right now (19 April 2018)
+    m_ttree->Branch("AK8truth_tau1",   &m_truth_ljet_tau1);   // vector of floats
+    m_ttree->Branch("AK8truth_tau2",   &m_truth_ljet_tau2);   // vector of floats
+    m_ttree->Branch("AK8truth_tau3",   &m_truth_ljet_tau3);   // vector of floats
 
     // Physics Objects
     // -- AK4 Jets
@@ -648,6 +825,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("GENenergy",   &m_mc_e);        // vector of floats
     m_ttree->Branch("GENid",       &m_mc_pdgId);    // vector of ints
     m_ttree->Branch("GENstatus",   &m_mc_status);   // vector of ints
+    m_ttree->Branch("GENparent_idx", &m_mc_parent_idx);   // vector of ints
+    m_ttree->Branch("GENchild0_idx", &m_mc_child0_idx);   // vector of ints
+    m_ttree->Branch("GENchild1_idx", &m_mc_child1_idx);   // vector of ints
     m_ttree->Branch("GENisHadTop", &m_mc_isHadTop); // vector of ints
 
     return;
@@ -704,24 +884,81 @@ bool EventSaverFlatNtuple::jetID( const pat::Jet& j ) const {
 }
 
 
-float EventSaverFlatNtuple::getTau( unsigned int N, const edm::Ptr<reco::Jet>& ij ) const {
+std::vector<float> EventSaverFlatNtuple::charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx ) const {
+    /* Calculate the jet charge
+       Nest the kappa loop inside the jet consistituents loop
+       to calculate jet charge for multiple kappa values -- might be less resource
+       intensive than looping over the jet constituents multiple times...?
+       !! DO NOT CALL THIS DIRECTLY FOR AN AK8 JET, IT WILL NOT ACCESS ALL DAUGHTERS !!
+    */
+    unsigned int size = jet.numberOfDaughters();
+    unsigned int n_kappas = kappas.size();
+
+    std::vector<float> charges;
+    charges.resize( n_kappas,0.0 );
+
+    for (unsigned int jd=first_idx; jd<size; jd++){
+        const reco::CandidatePtr& dp = jet.daughterPtr(jd);
+        if ( !(dp.isNonnull() && dp.isAvailable()) ) continue;    // quality check on constituent
+
+        float child_q  = dp->charge();
+        float child_pt = dp->pt();
+
+        // sum the pt-weighted charges for different kappas
+        for (unsigned int kap=0; kap<n_kappas; kap++)
+            charges.at(kap) += child_q*pow(child_pt,kappas.at(kap));
+    }
+    // don't normalize by the total jet pt here, do that after calling this function!
+
+    return charges;
+}
+
+
+std::vector<float> EventSaverFlatNtuple::getTau( unsigned int N, const reco::Jet& ij ) const {
     /* Calculate n-subjettiness for soft drop subjets.
-       Loop over constituents of the soft drop subjet (just access the daughters).
+       Loop over constituents of the soft drop subjet (just access the daughters) & convert to pseudojets.
+       Calculate FJparticles only once, then calculate different taus (don't call this function repeatedly for the same jet!)
        Following existing setup in CMSSW for 94X (see links below).
-       It appears this can be done with the toolbox, but I'm not sure what else comes with that
+       NB: It appears this can be done with the toolbox, but I'm not sure what else comes with that
 
         https://github.com/cms-jet/JetToolbox/blob/jetToolbox_94X/python/jetToolbox_cff.py#L798
         https://github.com/cms-sw/cmssw/blob/master/RecoJets/JetProducers/python/nJettinessAdder_cfi.py
         https://github.com/cms-sw/cmssw/blob/master/RecoJets/JetProducers/plugins/NjettinessAdder.cc
     */
+    std::vector<float> taus;
+    taus.resize(N,0.0);
+
     std::vector<fastjet::PseudoJet> FJparticles;
-    for (unsigned k=0,size=ij->numberOfDaughters(); k<size; ++k){
-        const reco::CandidatePtr & dp = ij->daughterPtr(k);
+    for (unsigned k=0,size=ij.numberOfDaughters(); k<size; ++k){
+        const reco::CandidatePtr & dp = ij.daughterPtr(k);
         if ( dp.isNonnull() && dp.isAvailable() )
             FJparticles.push_back( fastjet::PseudoJet( dp->px(), dp->py(), dp->pz(), dp->energy() ) );
     }
 
-    return m_nsub->getTau(N, FJparticles);
+    // Calculate n-subjettiness (N=1,2,3,...)
+    for (unsigned int nt=1; nt<N+1; nt++)
+        taus.at(nt-1) = m_nsub->getTau(nt,FJparticles);
+
+    return taus;
+}
+
+
+int EventSaverFlatNtuple::findPartonIndex( const std::vector<reco::GenParticle>& items, const reco::Candidate& item ) const{
+    /* loop over particles (in the decay chain before this particle) to get parent/children
+       -- Easier than comparing attributes?
+    */
+    int p0_idx(-1);
+    for (unsigned int p0=0,size=items.size(); p0<size; p0++){
+        // compare pdgId, status, charge
+        if ( items.at(p0).charge() == item.charge() &&
+             items.at(p0).status() == item.status() &&
+             items.at(p0).pdgId()  == item.pdgId() ){
+            p0_idx = p0;
+            break;
+        }
+    } // end loop over truth particles
+
+    return p0_idx;
 }
 
 

@@ -60,6 +60,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TSystem.h"
+#include "TH2D.h"
 
 #include "lwtnn/lwtnn/interface/LightweightNeuralNetwork.hh"
 #include "lwtnn/lwtnn/interface/parse_json.hh"
@@ -77,7 +78,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     bool checkTopDecay(const reco::Candidate& daughter) const;
     bool passAK8( const pat::Jet& j, const int index, const float& SDmass) const;
     bool jetID( const pat::Jet& j ) const;
-    float getTau( unsigned int N, const edm::Ptr<reco::Jet>& ij ) const;
+    std::vector<float> charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx=0 ) const;
+    std::vector<float> getTau( unsigned int N, const reco::Jet& ij ) const;
+    int findPartonIndex( const std::vector<reco::GenParticle>& items, const reco::Candidate& item ) const;
 
   private:
 
@@ -87,7 +90,15 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     TTree* m_ttree;                // physics information
     TTree* m_metadata_ttree;       // metadata
-    TH1D* m_hist_cutflow;
+    TH1D* m_hist_cutflow;          // cutflow (for bookkeeping)
+
+    // histograms of truth-level information
+    TH1D* m_hist_truth_dy;
+    TH2D* m_hist_truth_mtt_dy;
+    TH2D* m_hist_truth_pttt_dy;
+    TH2D* m_hist_truth_beta_dy;
+    TH2D* m_hist_truth_ytt_dy;
+
 
     std::auto_ptr<fastjet::contrib::Njettiness> m_nsub;
 
@@ -105,6 +116,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::map<std::string, float> m_KFactors;         // map sample name to KFactor
     std::map<std::string, float> m_sumOfMCWeights;   // map sample name to sum of weights
 
+    std::vector<unsigned int> m_goodIDs = {6,15,23,24,25,7000001,8000001,9900113};   // top, bosons, plus some BSM (VLQ and Zprime, I think)
 
     // Tokens
     edm::EDGetTokenT<std::vector<pat::Muon>> t_muons;
@@ -199,6 +211,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_BEST_j;
     std::vector<int> m_ljet_BEST_class;
     std::vector<float> m_ljet_charge;
+    std::vector<float> m_ljet_chargeSD;
+    std::vector<float> m_ljet_charge3;
+    std::vector<float> m_ljet_charge10;
     std::vector<float> m_ljet_SDmass;
     std::vector<int> m_ljet_ID_loose;
     std::vector<int> m_ljet_ID_medium;
@@ -212,6 +227,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet0_bdisc;
     std::vector<float> m_ljet_subjet0_deepCSV;
     std::vector<float> m_ljet_subjet0_charge;
+    std::vector<float> m_ljet_subjet0_charge3;
+    std::vector<float> m_ljet_subjet0_charge10;
     std::vector<float> m_ljet_subjet1_pt;
     std::vector<float> m_ljet_subjet1_mass;
     std::vector<float> m_ljet_subjet1_tau1;
@@ -220,6 +237,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet1_bdisc;
     std::vector<float> m_ljet_subjet1_deepCSV;
     std::vector<float> m_ljet_subjet1_charge;
+    std::vector<float> m_ljet_subjet1_charge3;
+    std::vector<float> m_ljet_subjet1_charge10;
     std::vector<float> m_ljet_uncorrPt;
     std::vector<float> m_ljet_uncorrE;
 
@@ -308,6 +327,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_mc_e;
     std::vector<int> m_mc_pdgId;
     std::vector<int> m_mc_status;
+    std::vector<int> m_mc_parent_idx;
+    std::vector<int> m_mc_child0_idx;
+    std::vector<int> m_mc_child1_idx;
     std::vector<int> m_mc_isHadTop;
 
     std::vector<float> m_truth_jet_pt;
@@ -315,11 +337,16 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_truth_jet_phi;
     std::vector<float> m_truth_jet_e;
     std::vector<float> m_truth_jet_charge;
+
     std::vector<float> m_truth_ljet_pt;
     std::vector<float> m_truth_ljet_eta;
     std::vector<float> m_truth_ljet_phi;
-    std::vector<float> m_truth_ljet_e;
+    std::vector<float> m_truth_ljet_mass;
     std::vector<float> m_truth_ljet_charge;
+    std::vector<float> m_truth_ljet_tau1;
+    std::vector<float> m_truth_ljet_tau2;
+    std::vector<float> m_truth_ljet_tau3;
+    std::vector<float> m_truth_ljet_SDmass;
 
     // Triggers
     // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2016#Trigger
