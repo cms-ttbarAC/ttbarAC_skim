@@ -80,7 +80,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         cma::getSampleWeights( t_metadataFile,m_mapOfSamples );
     }
     bool sampInFile = (m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end());
-    std::cout << " SAMPLE NAME " << m_sampleName << ": " << sampInFile << std::endl;
+    std::cout << " SAMPLE NAME " << m_sampleName << ": Found = " << sampInFile << std::endl;
 
     // N-subjettiness for softdrop subjets
     fastjet::contrib::NormalizedMeasure nsub_normalizedMeasure(1.0,0.8);
@@ -675,7 +675,9 @@ void EventSaverFlatNtuple::endJob(){
     */
     m_xsection = 1;
     m_kfactor  = 1;
+    m_NEvents  = 1;
     m_sumOfWeights = 1;
+
     if (m_isMC && m_mapOfSamples.find(m_sampleName)!=m_mapOfSamples.end()){
         Sample ss = m_mapOfSamples.at(m_sampleName);
         m_xsection = ss.XSection;
