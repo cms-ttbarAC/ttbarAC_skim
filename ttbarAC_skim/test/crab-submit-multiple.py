@@ -32,7 +32,7 @@ def main(input_datasets="crab-datasets.txt"):
 
     def submit(config):
         try:
-            crabCommand('submit', config = config)
+            crabCommand('submit', config=config)   # add 'dryrun=False' as argument for testing
             print ' Executed crabCommand() '
         except HTTPException, hte:
             print ' ERROR :: Cannot execute command! '
@@ -72,7 +72,7 @@ def main(input_datasets="crab-datasets.txt"):
         # Data
         config.Data.splitting     = 'FileBased'
         config.Data.unitsPerJob   = 10 if isMC else 3
-        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim/'
+        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.2/'
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
         if not isMC: config.Data.lumiMask = 'goldenJSON_2016.txt'
@@ -95,3 +95,5 @@ if __name__=='__main__':
         main(sys.argv[1])    # pass datasets file as command line argument
     else:
         main("crab-datasets-test.txt")
+
+## THE END ##
