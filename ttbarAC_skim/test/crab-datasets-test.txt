@@ -1,1 +1,1 @@
-SingleElectronB /SingleElectron/Run2016B-03Feb2017_ver2-v2/MINIAOD
+ttbar /TT_TuneCUETP8M1_13TeV-powheg-pythia8/RunIISpring16MiniAODv2-PUSpring16RAWAODSIM_reHLT_80X_mcRun2_asymptotic_v14_ext3-v1/MINIAODSIM
