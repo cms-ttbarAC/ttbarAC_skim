@@ -116,7 +116,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::map<std::string, float> m_KFactors;         // map sample name to KFactor
     std::map<std::string, float> m_sumOfMCWeights;   // map sample name to sum of weights
 
-    std::vector<unsigned int> m_goodIDs = {6,15,23,24,25,7000001,8000001,9900113};   // top, bosons, plus some BSM (VLQ and Zprime, I think)
+    std::vector<unsigned int> m_goodIDs = {6,15,23,24,25,7000001,8000001,9900113,9900213};   // top, bosons, plus some BSM (VLQ, Zprime, & Wprime I think)
 
     // Tokens
     edm::EDGetTokenT<std::vector<pat::Muon>> t_muons;
