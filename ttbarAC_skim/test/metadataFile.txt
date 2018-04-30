@@ -16,6 +16,7 @@ QCD_Pt_80to170_bcToE_TuneCUETP8M1_13TeV_pythia8 38104.43 1 1 1
 QCD_Pt_170to250_bcToE_TuneCUETP8M1_13TeV_pythia8 2635.81332 1 1 1
 QCD_Pt_250toInf_bcToE_TuneCUETP8M1_13TeV_pythia8 711.925875 1 1 1
 TT_TuneCUETP8M1_13TeV-powheg-pythia8 831.76 77229341 1 77229341
+TT_TuneCUETP8M2T4_13TeV-powheg-pythia8 831.76 77229341 1 77229341
 ST_s-channel_4f_leptonDecays_13TeV-amcatnlo-pythia8_TuneCUETP8M1 3.36 1 1 9651642
 ST_t-channel_top_4f_inclusiveDecays_TuneCUETP8M2T4_13TeV-powhegV2-madspin 136.02 1 1 67240808
 ST_t-channel_antitop_4f_inclusiveDecays_TuneCUETP8M2T4_13TeV-powhegV2-madspin 80.95 1 1 38811017
@@ -37,3 +38,32 @@ WW_TuneCUETP8M1_13TeV-pythia8 118.7 1 1 6987124
 WZ_TuneCUETP8M1_13TeV-pythia8 44.9 1 1 2995828
 ZZ_TuneCUETP8M1_13TeV-pythia8 15.4 1 1 990064
 DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8 5765 1 1 42923575
+##
+## Signal samples for Wprime->qQ search
+WprimeToTBprimeJets_Wp1500NarTp1200NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500NarTp700NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500NarTp700NarRH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500NarTp700WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500NarTp900NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500WidTp1200WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500WidTp700NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500WidTp700WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp1500WidTp900WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000NarTp1200NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000NarTp1200NarRH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000NarTp1200WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000NarTp1500NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000NarTp900NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000WidTp1200NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000WidTp1200WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000WidTp1500WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2000WidTp900WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500NarTp1200NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500NarTp1500NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500NarTp1900NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500NarTp1900NarRH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500NarTp1900WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500WidTp1200WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500WidTp1500WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500WidTp1900NarLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
+WprimeToTBprimeJets_Wp2500WidTp1900WidLH_TuneCUETP8M2T4_13TeV-madgraphMLM-pythia8 1 1 1 1
