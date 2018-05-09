@@ -406,7 +406,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     for (const auto& ljet : *m_ljets.product()){
         // Check jet
         float SDmass = m_BEST_products.at("SDmass")[nj];
-        bool pass = passAK8( ljet,nj,SDmass );
+        bool pass = passAK8( ljet,SDmass );
         if (!pass){
             nj++;
             continue;
@@ -851,14 +851,10 @@ bool EventSaverFlatNtuple::checkTopDecay(const reco::Candidate& daughter) const{
 }
 
 
-bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const int index, const float& SDmass) const{
+bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const float& SDmass) const{
     /* Check if large-R jet passes basic cuts */
-    bool pass(false);
-    double pt_cut = (index==0) ? 350. : 300;
-
     bool goodJet = jetID(j);
-
-    if (j.pt() > pt_cut && goodJet && SDmass>20) pass = true;
+    bool pass    = (j.pt() > 350. && goodJet && SDmass>20);
 
     return pass;
 }

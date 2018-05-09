@@ -76,7 +76,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     void initialize_branches();
     bool checkTopDecay(const reco::Candidate& daughter) const;
-    bool passAK8( const pat::Jet& j, const int index, const float& SDmass) const;
+    bool passAK8( const pat::Jet& j, const float& SDmass) const;
     bool jetID( const pat::Jet& j ) const;
     std::vector<float> charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx=0 ) const;
     std::vector<float> getTau( unsigned int N, const reco::Jet& ij ) const;
