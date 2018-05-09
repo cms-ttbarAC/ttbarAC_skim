@@ -87,7 +87,7 @@ process.selectedElectrons = cms.EDFilter('PATElectronSelector',
 
 process.selectedAK4Jets = cms.EDFilter('PATJetSelector',
     src = cms.InputTag('slimmedJets'),
-    cut = cms.string('pt > 50.0 && abs(eta) < 2.4')
+    cut = cms.string('pt > 30.0 && abs(eta) < 2.4')
 )
 """
 updateJetCollection(

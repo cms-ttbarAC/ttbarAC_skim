@@ -580,6 +580,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_ID_medium.clear();
     m_el_ID_tight.clear();
     //m_el_ID_HEEP.clear();
+    m_el_ID_looseNoIso.clear();
+    m_el_ID_mediumNoIso.clear();
+    m_el_ID_tightNoIso.clear();
 
     for (size_t i = 0; i < m_electrons->size(); ++i){   
         const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
