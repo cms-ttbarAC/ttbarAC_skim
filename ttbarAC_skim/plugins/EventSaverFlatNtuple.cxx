@@ -251,7 +251,21 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
             m_hist_truth_beta_dy->Fill(beta,dy);
             m_hist_truth_ytt_dy->Fill(ytt,dy);
          }
-   } // end if isMC
+    } // end if isMC
+
+
+    if (h_vertices->empty()) return;               // skip the event if no PV found
+    m_hist_cutflow->Fill(1.5);   // Primary Vertex
+
+
+    // May not have the BEST products
+    // -- https://twiki.cern.ch/twiki/bin/view/Main/CMSSWCheatSheet#Does_a_certain_product_exist_in
+    try {event.getByToken( t_ljets, m_ljets );}
+    catch( cms::Exception& ex ) {std::cout << " > Large-R Jets not found " << std::endl;}
+    if (!m_ljets.isValid()) {
+        std::cout << " > Product not valid: Large-R Jets " << std::endl;
+        return;
+    }
 
 
     // Set branch values
@@ -262,10 +276,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
     // -- primary vertex information
     m_npv = h_vertices->size();                    // primary vertices
-    if (h_vertices->empty()) return;               // skip the event if no PV found
     const reco::Vertex &PV = h_vertices->front();  // save PV for tight muon ID
-
-    m_hist_cutflow->Fill(1.5);   // Primary Vertex
 
     // -- pileup
     m_true_pileup = 0;
@@ -384,14 +395,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_uncorrE.clear();
     m_HTAK8 = 0;
 
-    // May not have the BEST products
-    // -- https://twiki.cern.ch/twiki/bin/view/Main/CMSSWCheatSheet#Does_a_certain_product_exist_in
-    try {event.getByToken( t_ljets, m_ljets );}
-    catch( cms::Exception& ex ) {std::cout << " > Large-R Jets not found " << std::endl;}
-    if (!m_ljets.isValid()) {
-        std::cout << " > Product not valid: Large-R Jets " << std::endl;
-        return;
-    }
     m_BEST_products.clear();
     for (unsigned int i=0,size=m_BEST_variables.size(); i<size; i++){
         edm::Handle<std::vector<float>> h_tmp;
@@ -540,7 +543,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         nj++;
     } // end loop over AK8
 
-    if (m_ljet_pt.size()<1) return;
+    if (m_ljet_pt.size()<1)
+        return;
     m_hist_cutflow->Fill(2.5);    // AK8Jets
 
 
@@ -584,8 +588,11 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_ID_mediumNoIso.clear();
     m_el_ID_tightNoIso.clear();
 
-    for (size_t i = 0; i < m_electrons->size(); ++i){   
+    for (size_t i=0, size=m_electrons->size(); i<size; ++i){   
         const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
+
+        // selector: pt > 40.0 && abs(eta) < 2.4
+        if (el->pt() < 40. || std::abs(el->eta())>2.4) continue;
 
         m_el_pt.push_back( el->pt() );
         m_el_eta.push_back(el->eta() );
@@ -596,7 +603,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         //m_el_iso.push_back( (el->trackIso() + el->caloIso()) / el->pt() );
 
         // ID
-        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];
+        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];    // includes isolation requirment
         vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
         vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
         m_el_ID_loose.push_back( idLoose.cutFlowPassed() );
@@ -613,8 +620,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_el_ID_looseNoIso.push_back( idLooseNoIso.cutFlowPassed() );
         m_el_ID_mediumNoIso.push_back(idMediumNoIso.cutFlowPassed() );
         m_el_ID_tightNoIso.push_back( idTightNoIso.cutFlowPassed() );
-
-        i++;
     } // end loop over electrons
 
     m_mu_pt.clear();
@@ -855,7 +860,7 @@ bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const float& SDmass) cons
     /* Check if large-R jet passes basic cuts */
     bool goodJet = jetID(j);
     bool pass    = (j.pt() > 350. && goodJet && SDmass>20);
-
+ 
     return pass;
 }
 
