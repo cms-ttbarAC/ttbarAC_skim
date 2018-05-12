@@ -1,6 +1,6 @@
 /*
 Created:        29 March    2018
-Last Updated:   30 March    2018
+Last Updated:   10 May      2018
 
 Dan Marley
 daniel.edison.marley@cernSPAMNOT.ch
@@ -93,7 +93,6 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
 
     m_nsub = std::auto_ptr<fastjet::contrib::Njettiness> ( new fastjet::contrib::Njettiness( *axesDef, *measureDef ) );
 
-
     // Lightweight NN interface with BEST
     std::string dnnFile("");
 
@@ -108,6 +107,39 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     std::ifstream input_cfg( dnnFile );                     // original: "data/BEST_mlp.json"
     lwt::JSONConfig lwcfg = lwt::parse_json( input_cfg );
     m_lwtnn = new lwt::LightweightNeuralNetwork(lwcfg.inputs, lwcfg.layers, lwcfg.outputs);
+
+    // New JEC for cleaned-jets
+    //   Guide: https://github.com/dmajumder/VLQAna/blob/CMSSW_8_0_X_NewB2GAnaFW/src/JetMaker.cc
+    //   -> https://twiki.cern.ch/twiki/bin/view/CMS/JECDataMC#Jet_Energy_Corrections_in_Run2
+    //      Not updating to newest recommendation (as of 11 May) because there is no GT listed
+    //   JECDatabase/textFiles/
+    //    Summer16_23Sep2016 + BCDV4_DATA || EFV4_DATA || GV4_DATA || HV4_DATA || V4_MC
+    m_ak4_jec.clear();
+    std::string JECpath("JECDatabase/textFiles/Summer16_23Sep2016");
+    std::vector<std::string> eras = {"V4_MC","BCDV4_DATA","EFV4_DATA","GV4_DATA","HV4_DATA"};
+    for (const auto& era : eras){
+        std::vector<JetCorrectorParameters> vPar;  
+
+        std::vector<std::string> JECpayloads = {
+            JECpath+era+"/Summer16_23Sep2016"+era+"_L1FastJet_AK4PFchs.txt",
+            JECpath+era+"/Summer16_23Sep2016"+era+"_L2Relative_AK4PFchs.txt",
+            JECpath+era+"/Summer16_23Sep2016"+era+"_L3Absolute_AK4PFchs.txt"
+        };
+
+        // extra correction for data
+        if (era.find("_MC")==std::string::npos)
+            JECpayloads.push_back(JECpath+era+"/Summer16_23Sep2016"+era+"_L2L3Residual_AK4PFchs.txt");
+
+        for ( std::vector<std::string>::const_iterator it = JECpayloads.begin(); it != JECpayloads.end(); ++it) {
+            std::string jec_file("");
+            edm::FileInPath jecfile(*it);
+            jec_file = jecfile.fullPath();
+            JetCorrectorParameters pars(jec_file);
+            vPar.push_back(pars) ; 
+        }
+
+        m_ak4_jec[era] = boost::shared_ptr<FactorizedJetCorrector> ( new FactorizedJetCorrector(vPar) );
+    } // end loop over data eras and MC
 }
 
 
@@ -143,6 +175,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_elIdFullInfoMap_Medium, h_cutflow_elId_Medium );
     event.getByToken( t_elIdFullInfoMap_Tight,  h_cutflow_elId_Tight );
 //    event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
+
 
     // Start with filling cutflow
     m_hist_cutflow->Fill(0.5);  // INITIAL
@@ -315,41 +348,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_filterBits.at(name) = h_METFilter->accept(i);
     }
 
-
-    // AK4 jets
-    m_jet_pt.clear();
-    m_jet_eta.clear();
-    m_jet_phi.clear();
-    m_jet_mass.clear();
-    m_jet_area.clear();
-    m_jet_bdisc.clear();
-    m_jet_deepCSV.clear();
-    m_jet_uncorrPt.clear();
-    m_jet_uncorrE.clear();
-
-    m_HTAK4 = 0;
-
-    for (const auto& jet : *m_jets.product()){
-        bool goodJet = jetID(jet);
-        if (!goodJet) continue;
-
-        m_jet_pt.push_back(   jet.pt() );
-        m_jet_eta.push_back(  jet.eta() );
-        m_jet_phi.push_back(  jet.phi() );
-        m_jet_mass.push_back( jet.mass() );
-        m_jet_area.push_back( jet.jetArea() );
-        m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-//        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
-//        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
-//        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
-
-        m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
-        reco::Candidate::LorentzVector uncorrJet = jet.correctedP4(0);
-        m_jet_uncorrPt.push_back(uncorrJet.pt());
-        m_jet_uncorrE.push_back(uncorrJet.energy());
-
-        m_HTAK4 += jet.pt();
-    }
 
     // AK8 jets
     m_ljet_pt.clear();
@@ -587,6 +585,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_el_ID_looseNoIso.clear();
     m_el_ID_mediumNoIso.clear();
     m_el_ID_tightNoIso.clear();
+    m_electronKeys.clear();
 
     for (size_t i=0, size=m_electrons->size(); i<size; ++i){   
         const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
@@ -620,6 +619,17 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_el_ID_looseNoIso.push_back( idLooseNoIso.cutFlowPassed() );
         m_el_ID_mediumNoIso.push_back(idMediumNoIso.cutFlowPassed() );
         m_el_ID_tightNoIso.push_back( idTightNoIso.cutFlowPassed() );
+
+        // selector: TightID (no iso); pt > 50.0; abs(eta) < 2.4
+        if (el->pt()>50. && std::abs(el->eta())<2.4 && idTightNoIso.cutFlowPassed() ){
+            LeptonKey el_key;
+            el_key.p4.SetPtEtaPhiE( el->pt(), el->eta(), el->phi(), el->energy() );
+            el_key.keys.clear();
+            for (unsigned int kk=0, size=el->numberOfSourceCandidatePtrs(); kk<size; kk++)
+                el_key.keys.push_back( el->sourceCandidatePtr(kk).key() ); // el->originalObjectRef().key()
+
+            m_electronKeys.push_back( el_key );
+        }
     } // end loop over electrons
 
     m_mu_pt.clear();
@@ -631,6 +641,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_mu_ID_loose.clear();
     m_mu_ID_medium.clear();
     m_mu_ID_tight.clear();
+    m_muonKeys.clear();
 
     for (const auto& mu : *m_muons.product()){
         m_mu_pt.push_back(  mu.pt() );
@@ -665,7 +676,61 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_mu_ID_medium.push_back( isMediumMuon );
 
         m_mu_ID_tight.push_back( muon::isTightMuon(mu,PV) );
+
+        // selector: MediumID (no iso); pt > 50.0; abs(eta) < 2.4
+        if (mu.pt()>50. && std::abs(mu.eta())<2.4 && isMediumMuon ) {
+            LeptonKey mu_key;
+            mu_key.p4.SetPtEtaPhiE( mu.pt(), mu.eta(), mu.phi(), mu.energy() );
+            mu_key.keys.clear();
+            for (unsigned int kk=0, size=mu.numberOfSourceCandidatePtrs(); kk<size; kk++)
+                mu_key.keys.push_back( mu.sourceCandidatePtr(kk).key() );
+
+            m_muonKeys.push_back( mu_key );
+        }
     } // end loop over muons
+
+
+    // AK4 jets
+    m_jet_pt.clear();
+    m_jet_eta.clear();
+    m_jet_phi.clear();
+    m_jet_mass.clear();
+    m_jet_area.clear();
+    m_jet_bdisc.clear();
+    m_jet_deepCSV.clear();
+    m_jet_uncorrPt.clear();
+    m_jet_uncorrE.clear();
+    m_jet_keys.clear();
+
+    m_HTAK4 = 0;
+
+    for (const auto& jet : *m_jets.product()){
+        // lepton-cleaning
+        // look at mediumID muons & tightID electrons (both w/o isolation)
+        // re-check the 'loose' requirement
+        CleanJet cjet = leptonJetCleaning( jet );
+
+        if (!passAK4(cjet)) continue;                       // check kinematics (cjet should be the same as jet if not cleaned)
+
+        // save variables -- if the jet isn't cleaned, the cleanJet.p4 matches the jet 4-vector
+        m_jet_pt.push_back(   cjet.p4.Pt() );      // jet.pt()
+        m_jet_eta.push_back(  cjet.p4.Eta() );     // jet.eta()
+        m_jet_phi.push_back(  cjet.p4.Phi() );     // jet.phi()
+        m_jet_mass.push_back( cjet.p4.M() );       // jet.mass()
+
+        m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
+        //double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
+        //double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+        //m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
+        m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
+
+        m_jet_area.push_back( jet.jetArea() );
+        m_jet_uncorrPt.push_back( cjet.uncorrP4.Pt());   // same as jet.correctedP4(0)
+        m_jet_uncorrE.push_back(  cjet.uncorrP4.E());    // same as jet.correctedP4(0)
+
+        m_HTAK4 += cjet.p4.Pt();
+    }
+
 
     m_met_met = (*m_met.product())[0].pt();
     m_met_phi = (*m_met.product())[0].phi();
@@ -856,6 +921,13 @@ bool EventSaverFlatNtuple::checkTopDecay(const reco::Candidate& daughter) const{
 }
 
 
+bool EventSaverFlatNtuple::passAK4( const CleanJet& cjet ) const {
+    /* Check if small-R jet passes basic cuts (after cleaning!) */
+    bool pass = (cjet.isLoose && cjet.p4.Pt()>15 && std::abs( cjet.p4.Eta() )<2.4);
+    return pass;
+}
+
+
 bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const float& SDmass) const{
     /* Check if large-R jet passes basic cuts */
     bool goodJet = jetID(j);
@@ -865,24 +937,48 @@ bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const float& SDmass) cons
 }
 
 
+bool EventSaverFlatNtuple::jetID( const CleanJet& j ) const {
+    /* Check Jet ID (loose) for ~cleaned~ AK4
+        https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetID#Recommendations_for_13_TeV_2016
+    */
+    float inv_energy = 1. / j.uncorrP4.E();            // different jet energy after cleaning
+    float nhf = j.neutralHadronEnergy * inv_energy;    // same as original jet
+    float nef = j.neutralEmEnergy     * inv_energy;    // same as original jet
+    float chf = j.chargedHadronEnergy * inv_energy;    // same as original jet
+    float cef = j.chargedEmEnergy     * inv_energy;    // different if electron cleaned
+    float nch = j.chargedMultiplicity;                 // different for muon & electron cleaning
+    int nconstituents = j.numberOfDaughters;           // different for muon & electron cleaning
+
+    bool goodJet = 
+        nhf < m_nhfLoose &&
+        nef < m_nefLoose &&
+        chf > m_chfLoose &&
+        cef < m_cefLoose &&
+        nconstituents > m_nconstitLoose &&
+        nch > m_nchLoose;
+
+    return goodJet;
+}
+
+
 bool EventSaverFlatNtuple::jetID( const pat::Jet& j ) const {
     /* Check Jet ID (loose) 
         https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetID#Recommendations_for_13_TeV_2016
     */
-    float energy = j.energy();
-    float nhf = j.neutralHadronEnergy() / energy;
-    float nef = j.neutralEmEnergy() / energy;
-    float chf = j.chargedHadronEnergy() / energy;
-    float cef = j.chargedEmEnergy() / energy;
+    float nhf = j.neutralHadronEnergyFraction();
+    float nef = j.neutralEmEnergyFraction();
+    float chf = j.chargedHadronEnergyFraction();
+    float cef = j.chargedEmEnergyFraction();
     float nch = j.chargedMultiplicity();
-    int nconstituents = j.numberOfDaughters();
+    int nconstituents = nch + j.neutralMultiplicity(); 
+
     bool goodJet = 
-        nhf < 0.99 && 
-        nef < 0.99 && 
-        chf > 0.00 && 
-        cef < 0.99 && 
-        nconstituents > 1 &&
-        nch > 0;
+        nhf < m_nhfLoose &&
+        nef < m_nefLoose &&
+        chf > m_chfLoose &&
+        cef < m_cefLoose &&
+        nconstituents > m_nconstitLoose &&
+        nch > m_nchLoose;
 
     return goodJet;
 }
@@ -963,6 +1059,100 @@ int EventSaverFlatNtuple::findPartonIndex( const std::vector<reco::GenParticle>&
     } // end loop over truth particles
 
     return p0_idx;
+}
+
+
+CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
+    /* Clean jet of candidate leptons 
+       > If any of the lepton keys are in the AK4, 
+         subtract the lepton four vector from the AK4
+    */
+    reco::Candidate::LorentzVector uncorrJet = j.correctedP4(0);
+
+    CleanJet cleanJet;
+    cleanJet.p4.SetPtEtaPhiE( j.pt(), j.eta(), j.phi(), j.energy() );  // initialize to nominal jet
+    cleanJet.uncorrP4.SetPtEtaPhiE( uncorrJet.pt(), uncorrJet.eta(), uncorrJet.phi(), uncorrJet.energy() );     // set to 4-vector WITHOUT JECs
+    cleanJet.isLoose  = jetID(j);                 // nominal jet ID
+
+    // check constituents of this jet
+    bool clean(false);
+    float chargedEMEnergy_clean(0.0);             // count the charged EM energy for cleaned constituents
+    float chargedMultiplicity_clean(0.0);         // count the charged multiplicity for cleaned constituents
+
+    auto constituents = j.daughterPtrVector();
+    for ( auto & constituent : constituents ) {
+        int key = constituent.key();
+
+        // check muons
+        for (const auto mukey : m_muonKeys){
+            for (const auto& k : mukey.keys){
+                if (key == k){
+                    clean = true;
+                    cleanJet.uncorrP4 -= mukey.p4;
+                    chargedMultiplicity_clean++;
+                    break; // only subtract 4-vector if at least one of the keys match
+                }
+            }
+        } // end loop over muon candidates
+
+        // check electrons
+        for (const auto& elkey : m_electronKeys){
+            for (const auto& k : elkey.keys){
+                if (key == k){
+                    clean = true;
+                    cleanJet.uncorrP4 -= elkey.p4;
+                    chargedEMEnergy_clean += elkey.p4.E();
+                    chargedMultiplicity_clean++;
+                    break; // only subtract 4-vector if at least one of the keys match
+                }
+            }
+        } // end loop over electron candidates
+    } // end loop over jet constituents
+
+    if (clean) {
+        // recalculate 'isLoose' -- update PF information of jet
+        cleanJet.neutralHadronEnergy = j.neutralHadronEnergy();
+        cleanJet.neutralEmEnergy     = j.neutralEmEnergy();
+        cleanJet.chargedHadronEnergy = j.chargedHadronEnergy();
+        cleanJet.chargedEmEnergy     = j.chargedEmEnergy()     - chargedEMEnergy_clean;         // electrons
+        cleanJet.chargedMultiplicity = j.chargedMultiplicity() - chargedMultiplicity_clean;     // electrons+muons
+        cleanJet.numberOfDaughters   = cleanJet.chargedMultiplicity + j.neutralMultiplicity();  // electrons+muons
+
+        cleanJet.isLoose = jetID(cleanJet);   // uses uncorrected jet energy
+
+        // re-apply JECs
+        applyJEC( cleanJet, j.jetArea() );  // update p4 attribute
+    }
+
+    return cleanJet;
+}
+
+
+void EventSaverFlatNtuple::applyJEC( CleanJet& j, const float& area ) const {
+    /* Apply JECs to jet (nominally for jet cleaning) 
+        > IOV BCD: [1,276811]        corresponds to Summer16_23Sep2016BCDV4_DATA (For Runs B/C/D)
+        > IOV EF:  [276831,278801]   corresponds to Summer16_23Sep2016EFV4_DATA (For Runs E/early F)
+        > IOV G:   [278802,280385]   corresponds to Summer16_23Sep2016GV4_DATA (For Runs lateF/G)
+        > IOV H:   [280919,Infinity] corresponds to Summer16_23Sep2016HV4_DATA (For Run H)
+    */
+    std::string key("");
+    if (m_isMC) key = "V4_MC";
+    else if (m_runNumber>1 && m_runNumber<=276811) key = "BCDV4_DATA";
+    else if (m_runNumber>=276831 && m_runNumber<=278801) key = "EFV4_DATA";
+    else if (m_runNumber>=278802 && m_runNumber<=280385) key = "GV4_DATA";
+    else if (m_runNumber>=280919) key = "HV4_DATA";
+
+    m_ak4_jec.at(key)->setJetPt(  j.uncorrP4.Pt() );
+    m_ak4_jec.at(key)->setJetEta( j.uncorrP4.Eta() );
+    m_ak4_jec.at(key)->setJetE(   j.uncorrP4.Energy() );
+    m_ak4_jec.at(key)->setJetA(area );
+    m_ak4_jec.at(key)->setRho( m_rho );
+    m_ak4_jec.at(key)->setNPV( m_npv );
+
+    float JECfactor = m_ak4_jec.at(key)->getCorrection();
+    j.p4 = j.uncorrP4 * JECfactor;                  // scale 4-vector by correction
+
+    return;
 }
 
 

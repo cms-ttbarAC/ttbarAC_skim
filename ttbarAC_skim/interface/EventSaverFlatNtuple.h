@@ -22,6 +22,10 @@
 #include "DataFormats/Provenance/interface/EventAuxiliary.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
 
+#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
+
 #include "DataFormats/JetReco/interface/GenJet.h"
 #include "DataFormats/JetReco/interface/PFJet.h"
 #include "DataFormats/JetReco/interface/PFJetCollection.h"
@@ -68,6 +72,29 @@
 #include "Analysis/CyMiniAna/interface/tools.h"
 #include "Analysis/CyMiniAna/interface/physicsObjects.h"
 
+
+struct LeptonKey {
+    TLorentzVector p4;
+    std::vector<int> keys;
+};
+
+
+struct CleanJet {
+    TLorentzVector p4;         // jet with JECs re-applied (if necessary, else the nominal jet p4)
+    TLorentzVector uncorrP4;   // jet without JECs
+    bool isLoose;              // ID of jet (same as nominal if no cleaning)
+
+    // PF information (for jet ID)
+    float neutralHadronEnergy;
+    float neutralEmEnergy;
+    float chargedHadronEnergy;
+    float chargedEmEnergy;
+    float chargedMultiplicity;
+    int numberOfDaughters;
+};
+
+
+
 class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResources> {
   public:
 
@@ -77,7 +104,13 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     void initialize_branches();
     bool checkTopDecay(const reco::Candidate& daughter) const;
     bool passAK8( const pat::Jet& j, const float& SDmass) const;
+    bool passAK4( const CleanJet& j) const;
+
     bool jetID( const pat::Jet& j ) const;
+    bool jetID( const CleanJet& j ) const;
+    CleanJet leptonJetCleaning( const pat::Jet& j ) const;
+    void applyJEC( CleanJet& j, const float& area ) const;
+
     std::vector<float> charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx=0 ) const;
     std::vector<float> getTau( unsigned int N, const reco::Jet& ij ) const;
     int findPartonIndex( const std::vector<reco::GenParticle>& items, const reco::Candidate& item ) const;
@@ -115,6 +148,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::map<std::string, float> m_XSections;        // map sample name to XSection
     std::map<std::string, float> m_KFactors;         // map sample name to KFactor
     std::map<std::string, float> m_sumOfMCWeights;   // map sample name to sum of weights
+
+    std::map<std::string,boost::shared_ptr<FactorizedJetCorrector>> m_ak4_jec;     // JECs
 
     std::vector<unsigned int> m_goodIDs = {6,15,23,24,25,7000001,8000001,9900113,9900213};   // top, bosons, plus some BSM (VLQ, Zprime, & Wprime I think)
 
@@ -195,6 +230,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<int> m_jet_true_flavor;
     std::vector<float> m_jet_uncorrPt;
     std::vector<float> m_jet_uncorrE;
+    std::vector<std::vector<unsigned int>> m_jet_keys;
 
     std::vector<float> m_ljet_pt;
     std::vector<float> m_ljet_eta;
@@ -263,6 +299,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_el_SF_reco_UP;
     std::vector<float> m_el_SF_ID_DN;
     std::vector<float> m_el_SF_reco_DN;
+    std::vector<LeptonKey> m_electronKeys;
 
     std::vector<float> m_mu_pt;
     std::vector<float> m_mu_eta;
@@ -285,6 +322,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_mu_SF_ISO_DN;
     std::vector<float> m_mu_SF_trigger_DN;
     std::vector<float> m_mu_SF_track_DN;
+    std::vector<LeptonKey> m_muonKeys;
 
     float m_met_met;
     float m_met_phi;
@@ -347,6 +385,14 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_truth_ljet_tau2;
     std::vector<float> m_truth_ljet_tau3;
     std::vector<float> m_truth_ljet_SDmass;
+
+    // Loose jet ID
+    float m_nhfLoose = 0.99;
+    float m_nefLoose = 0.99;
+    float m_chfLoose = 0.00;
+    float m_cefLoose = 0.99;
+    int m_nconstitLoose = 1;
+    float m_nchLoose = 0;
 
     // Triggers
     // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2016#Trigger
