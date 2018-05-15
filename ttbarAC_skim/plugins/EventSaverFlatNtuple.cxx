@@ -140,6 +140,12 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
 
         m_ak4_jec[era] = boost::shared_ptr<FactorizedJetCorrector> ( new FactorizedJetCorrector(vPar) );
     } // end loop over data eras and MC
+
+    edm::FileInPath ak4jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK4PFchs.txt");
+    edm::FileInPath ak8jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK8PFchs.txt");
+
+    m_resolution_ak4sf = JME::JetResolutionScaleFactor(ak4jersfFile.fullPath());
+    m_resolution_ak8sf = JME::JetResolutionScaleFactor(ak8jersfFile.fullPath());
 }
 
 
@@ -155,7 +161,7 @@ void EventSaverFlatNtuple::beginJob(){
 }
 
 
-void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSetup& ) {
+void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSetup& setup) {
     /* Fill TTree 
        This is the function to modify / inherit for analysis-specific purposes
     */
@@ -174,8 +180,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     event.getByToken( t_elIdFullInfoMap_Loose,  h_cutflow_elId_Loose );
     event.getByToken( t_elIdFullInfoMap_Medium, h_cutflow_elId_Medium );
     event.getByToken( t_elIdFullInfoMap_Tight,  h_cutflow_elId_Tight );
-//    event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
-
+    //event.getByToken( t_elIdFullInfoMap_HEEP,   h_cutflow_elId_HEEP );
 
     // Start with filling cutflow
     m_hist_cutflow->Fill(0.5);  // INITIAL
@@ -348,6 +353,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_filterBits.at(name) = h_METFilter->accept(i);
     }
 
+    // Missing Transverse Momentum
+    m_met_met = (*m_met.product())[0].pt();
+    m_met_phi = (*m_met.product())[0].phi();
+
 
     // AK8 jets
     m_ljet_pt.clear();
@@ -391,6 +400,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_ljet_subjet1_charge10.clear();
     m_ljet_uncorrPt.clear();
     m_ljet_uncorrE.clear();
+    m_ljet_jerSF.clear();
+    m_ljet_jerSF_UP.clear();
+    m_ljet_jerSF_DOWN.clear();
     m_HTAK8 = 0;
 
     m_BEST_products.clear();
@@ -536,6 +548,11 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         reco::Candidate::LorentzVector uncorrJet = ljet.correctedP4(0);
         m_ljet_uncorrPt.push_back(uncorrJet.pt());
         m_ljet_uncorrE.push_back(uncorrJet.energy());
+
+        JME::JetParameters parameters = {{JME::Binning::JetEta, ljet.eta()}, {JME::Binning::Rho, m_rho}};
+        m_ljet_jerSF.push_back( m_resolution_ak8sf.getScaleFactor(parameters) );
+        m_ljet_jerSF_UP.push_back( m_resolution_ak8sf.getScaleFactor(parameters, Variation::UP) );
+        m_ljet_jerSF_DOWN.push_back( m_resolution_ak8sf.getScaleFactor(parameters, Variation::DOWN) );
 
         m_HTAK8+=ljet.pt();
         nj++;
@@ -700,7 +717,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_jet_deepCSV.clear();
     m_jet_uncorrPt.clear();
     m_jet_uncorrE.clear();
-    m_jet_keys.clear();
+    m_jet_jerSF.clear();
+    m_jet_jerSF_UP.clear();
+    m_jet_jerSF_DOWN.clear();
 
     m_HTAK4 = 0;
 
@@ -728,12 +747,13 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_uncorrPt.push_back( cjet.uncorrP4.Pt());   // same as jet.correctedP4(0)
         m_jet_uncorrE.push_back(  cjet.uncorrP4.E());    // same as jet.correctedP4(0)
 
+        JME::JetParameters parameters = {{JME::Binning::JetEta, cjet.p4.Eta()}, {JME::Binning::Rho, m_rho}};
+        m_jet_jerSF.push_back( m_resolution_ak4sf.getScaleFactor(parameters) );
+        m_jet_jerSF_UP.push_back( m_resolution_ak4sf.getScaleFactor(parameters, Variation::UP) );
+        m_jet_jerSF_DOWN.push_back( m_resolution_ak4sf.getScaleFactor(parameters, Variation::DOWN) );
+
         m_HTAK4 += cjet.p4.Pt();
     }
-
-
-    m_met_met = (*m_met.product())[0].pt();
-    m_met_phi = (*m_met.product())[0].phi();
 
     // Fill output tree
     m_ttree->Fill();
@@ -835,8 +855,11 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK8BEST_h", &m_ljet_BEST_h); // vector of floats
     m_ttree->Branch("AK8BEST_j", &m_ljet_BEST_j); // vector of floats
     m_ttree->Branch("AK8BEST_class", &m_ljet_BEST_class); // vector of floats
-    m_ttree->Branch("AK8uncorrPt", &m_ljet_uncorrPt);  // vector of floats
-    m_ttree->Branch("AK8uncorrE",  &m_ljet_uncorrE);   // vector of floats
+    m_ttree->Branch("AK8uncorrPt", &m_ljet_uncorrPt);     // vector of floats
+    m_ttree->Branch("AK8uncorrE",  &m_ljet_uncorrE);      // vector of floats
+    m_ttree->Branch("AK8jerSF",    &m_jet_jerSF);         // vector of floats
+    m_ttree->Branch("AK8jerSF_UP",   &m_jet_jerSF_UP);    // vector of floats
+    m_ttree->Branch("AK8jerSF_DOWN", &m_jet_jerSF_DOWN);  // vector of floats
 
     m_ttree->Branch("AK8truth_pt",     &m_truth_ljet_pt);     // vector of floats
     m_ttree->Branch("AK8truth_eta",    &m_truth_ljet_eta);    // vector of floats
@@ -859,6 +882,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     m_ttree->Branch("AK4deepCSV",  &m_jet_deepCSV);   // vector of floats
     m_ttree->Branch("AK4uncorrPt", &m_jet_uncorrPt);  // vector of floats
     m_ttree->Branch("AK4uncorrE",  &m_jet_uncorrE);   // vector of floats
+    m_ttree->Branch("AK4jerSF",    &m_jet_jerSF);     // vector of floats
+    m_ttree->Branch("AK4jerSF_UP",   &m_jet_jerSF_UP);   // vector of floats
+    m_ttree->Branch("AK4jerSF_DOWN", &m_jet_jerSF_DOWN); // vector of floats
 
     // -- Leptons (electrons & muons)
     m_ttree->Branch("ELpt",    &m_el_pt);     // vector of floats
@@ -1062,7 +1088,7 @@ int EventSaverFlatNtuple::findPartonIndex( const std::vector<reco::GenParticle>&
 }
 
 
-CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
+CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) {
     /* Clean jet of candidate leptons 
        > If any of the lepton keys are in the AK4, 
          subtract the lepton four vector from the AK4
@@ -1073,6 +1099,9 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
     cleanJet.p4.SetPtEtaPhiE( j.pt(), j.eta(), j.phi(), j.energy() );  // initialize to nominal jet
     cleanJet.uncorrP4.SetPtEtaPhiE( uncorrJet.pt(), uncorrJet.eta(), uncorrJet.phi(), uncorrJet.energy() );     // set to 4-vector WITHOUT JECs
     cleanJet.isLoose  = jetID(j);                 // nominal jet ID
+
+    // save the lepton p4 if it is used in cleaning for MET re-calculation
+    std::vector<TLorentzVector> cleaningLeptons;  // may be more than one, but not likely (?)
 
     // check constituents of this jet
     bool clean(false);
@@ -1090,6 +1119,7 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
                     clean = true;
                     cleanJet.uncorrP4 -= mukey.p4;
                     chargedMultiplicity_clean++;
+                    cleaningLeptons.push_back( mukey.p4 );
                     break; // only subtract 4-vector if at least one of the keys match
                 }
             }
@@ -1103,6 +1133,7 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
                     cleanJet.uncorrP4 -= elkey.p4;
                     chargedEMEnergy_clean += elkey.p4.E();
                     chargedMultiplicity_clean++;
+                    cleaningLeptons.push_back( elkey.p4 );
                     break; // only subtract 4-vector if at least one of the keys match
                 }
             }
@@ -1122,9 +1153,30 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) const {
 
         // re-apply JECs
         applyJEC( cleanJet, j.jetArea() );  // update p4 attribute
+
+        // update MET
+        updateMET( cleanJet, cleaningLeptons );
     }
 
     return cleanJet;
+}
+
+
+void EventSaverFlatNtuple::updateMET( const CleanJet& j, const std::vector<TLorentzVector>& leptons4cleaning ){
+    /* Update the MET based on lepton-jet cleaning */
+    TLorentzVector met;
+    met.SetPtEtaPhiE( m_met_met, 0., m_met_phi, 0.);
+
+    met += j.originalP4;
+    met -= j.p4;
+
+    for (const auto& l : leptons4cleaning)
+        met -= l;
+
+    m_met_met = met.Pt();    // new corrected result
+    m_met_phi = met.Phi();   // new corrected result
+
+    return;
 }
 
 
@@ -1150,6 +1202,7 @@ void EventSaverFlatNtuple::applyJEC( CleanJet& j, const float& area ) const {
     m_ak4_jec.at(key)->setNPV( m_npv );
 
     float JECfactor = m_ak4_jec.at(key)->getCorrection();
+    j.originalP4.SetPtEtaPhiE( j.p4.Pt(), j.p4.Eta(), j.p4.Phi(), j.p4.E() );
     j.p4 = j.uncorrP4 * JECfactor;                  // scale 4-vector by correction
 
     return;

@@ -25,6 +25,7 @@
 #include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
 #include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
 #include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
+#include "JetMETCorrections/Modules/interface/JetResolution.h"
 
 #include "DataFormats/JetReco/interface/GenJet.h"
 #include "DataFormats/JetReco/interface/PFJet.h"
@@ -82,6 +83,7 @@ struct LeptonKey {
 struct CleanJet {
     TLorentzVector p4;         // jet with JECs re-applied (if necessary, else the nominal jet p4)
     TLorentzVector uncorrP4;   // jet without JECs
+    TLorentzVector originalP4; // nominal jet with JECs before cleaning (saved to update MET)
     bool isLoose;              // ID of jet (same as nominal if no cleaning)
 
     // PF information (for jet ID)
@@ -108,7 +110,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     bool jetID( const pat::Jet& j ) const;
     bool jetID( const CleanJet& j ) const;
-    CleanJet leptonJetCleaning( const pat::Jet& j ) const;
+    CleanJet leptonJetCleaning( const pat::Jet& j );
+    void updateMET( const CleanJet& j, const std::vector<TLorentzVector>& leptons4cleaning );
     void applyJEC( CleanJet& j, const float& area ) const;
 
     std::vector<float> charge( const reco::Jet& jet, const std::vector<float> kappas, const unsigned int first_idx=0 ) const;
@@ -150,6 +153,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::map<std::string, float> m_sumOfMCWeights;   // map sample name to sum of weights
 
     std::map<std::string,boost::shared_ptr<FactorizedJetCorrector>> m_ak4_jec;     // JECs
+    JME::JetResolutionScaleFactor m_resolution_ak4sf;
+    JME::JetResolutionScaleFactor m_resolution_ak8sf;
 
     std::vector<unsigned int> m_goodIDs = {6,15,23,24,25,7000001,8000001,9900113,9900213};   // top, bosons, plus some BSM (VLQ, Zprime, & Wprime I think)
 
@@ -230,7 +235,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<int> m_jet_true_flavor;
     std::vector<float> m_jet_uncorrPt;
     std::vector<float> m_jet_uncorrE;
-    std::vector<std::vector<unsigned int>> m_jet_keys;
+    std::vector<float> m_jet_jerSF;
+    std::vector<float> m_jet_jerSF_UP;
+    std::vector<float> m_jet_jerSF_DOWN;
 
     std::vector<float> m_ljet_pt;
     std::vector<float> m_ljet_eta;
@@ -277,6 +284,9 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::vector<float> m_ljet_subjet1_charge10;
     std::vector<float> m_ljet_uncorrPt;
     std::vector<float> m_ljet_uncorrE;
+    std::vector<float> m_ljet_jerSF;
+    std::vector<float> m_ljet_jerSF_UP;
+    std::vector<float> m_ljet_jerSF_DOWN;
 
     std::vector<float> m_el_pt;
     std::vector<float> m_el_eta;
