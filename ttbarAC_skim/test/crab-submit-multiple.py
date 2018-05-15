@@ -70,9 +70,9 @@ def main(input_datasets="crab-datasets.txt"):
             config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(primary_dataset)]
 
         # Data
-        config.Data.splitting     = 'FileBased'
-        config.Data.unitsPerJob   = 10 if isMC else 3
-        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.2/'
+        config.Data.splitting     = 'Automatic'
+        #config.Data.unitsPerJob   = 10 if isMC else 3
+        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.3/'
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
         if not isMC: config.Data.lumiMask = 'goldenJSON_2016.txt'

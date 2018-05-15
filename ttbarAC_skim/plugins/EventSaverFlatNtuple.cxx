@@ -115,25 +115,25 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     //   JECDatabase/textFiles/
     //    Summer16_23Sep2016 + BCDV4_DATA || EFV4_DATA || GV4_DATA || HV4_DATA || V4_MC
     m_ak4_jec.clear();
-    std::string JECpath("JECDatabase/textFiles/Summer16_23Sep2016");
+    std::string JECpathbase("JECDatabase/textFiles/");
+    std::string JECdate("Summer16_23Sep2016");
     std::vector<std::string> eras = {"V4_MC","BCDV4_DATA","EFV4_DATA","GV4_DATA","HV4_DATA"};
     for (const auto& era : eras){
         std::vector<JetCorrectorParameters> vPar;  
 
+        std::string JECpath = JECpathbase+JECdate+era;
         std::vector<std::string> JECpayloads = {
-            JECpath+era+"/Summer16_23Sep2016"+era+"_L1FastJet_AK4PFchs.txt",
-            JECpath+era+"/Summer16_23Sep2016"+era+"_L2Relative_AK4PFchs.txt",
-            JECpath+era+"/Summer16_23Sep2016"+era+"_L3Absolute_AK4PFchs.txt"
+            JECdate+era+"_L1FastJet_AK4PFchs.txt",
+            JECdate+era+"_L2Relative_AK4PFchs.txt",
+            JECdate+era+"_L3Absolute_AK4PFchs.txt"    // JECpath+"/"+
         };
 
         // extra correction for data
         if (era.find("_MC")==std::string::npos)
-            JECpayloads.push_back(JECpath+era+"/Summer16_23Sep2016"+era+"_L2L3Residual_AK4PFchs.txt");
+            JECpayloads.push_back(JECdate+era+"_L2L3Residual_AK4PFchs.txt");
 
-        for ( std::vector<std::string>::const_iterator it = JECpayloads.begin(); it != JECpayloads.end(); ++it) {
-            std::string jec_file("");
-            edm::FileInPath jecfile(*it);
-            jec_file = jecfile.fullPath();
+        for (const auto& payload : JECpayloads){
+            std::string jec_file(JECpath+"/"+payload);
             JetCorrectorParameters pars(jec_file);
             vPar.push_back(pars) ; 
         }
@@ -141,11 +141,11 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         m_ak4_jec[era] = boost::shared_ptr<FactorizedJetCorrector> ( new FactorizedJetCorrector(vPar) );
     } // end loop over data eras and MC
 
-    edm::FileInPath ak4jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK4PFchs.txt");
-    edm::FileInPath ak8jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK8PFchs.txt");
+    std::string ak4jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK4PFchs.txt");
+    std::string ak8jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK8PFchs.txt");
 
-    m_resolution_ak4sf = JME::JetResolutionScaleFactor(ak4jersfFile.fullPath());
-    m_resolution_ak8sf = JME::JetResolutionScaleFactor(ak8jersfFile.fullPath());
+    m_resolution_ak4sf = JME::JetResolutionScaleFactor(ak4jersfFile);
+    m_resolution_ak8sf = JME::JetResolutionScaleFactor(ak8jersfFile);
 }
 
 
