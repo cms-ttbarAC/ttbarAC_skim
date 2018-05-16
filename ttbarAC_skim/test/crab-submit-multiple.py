@@ -19,7 +19,7 @@ import Analysis.CyMiniAna.util as util
 
 
 
-def main(input_datasets="crab-datasets.txt"):
+def main(input_datasets="crab-datasets.txt",year='2016'):
 
     from CRABClient.UserUtilities import config
     config = config()
@@ -43,9 +43,7 @@ def main(input_datasets="crab-datasets.txt"):
         if (not id or id.startswith('#')): continue
 
         name,dataset = id.split(" ")
-        isMC = True
-        if name.startswith("SingleElectron") or name.startswith("SingleMuon") or name.startswith("JetHT"):
-            isMC = False
+        isMC = not (name.startswith("SingleElectron") or name.startswith("SingleMuon") or name.startswith("JetHT"))  # check data names
 
         primary_dataset = dataset.split('/')[1]
 
@@ -62,12 +60,9 @@ def main(input_datasets="crab-datasets.txt"):
         # JobType
         config.JobType.pluginName  = 'Analysis'
         config.JobType.psetName    = 'runSkim.py'
+        config.JobType.inputFiles  = ['BEST_mlp.json','metadataFile.txt','JERDatabase','JECDatabase']
+        config.JobType.pyCfgParams = ['isMC={0}'.format(isMC),'sampleName={0}'.format(primary_dataset),'year={0}'.format(year)]
         config.JobType.allowUndistributedCMSSW = True
-        config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt','JERDatabase','JECDatabase']
-        if isMC:
-            config.JobType.pyCfgParams = ['isMC=True','sampleName={0}'.format(primary_dataset)]
-        else:
-            config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(primary_dataset)]
 
         # Data
         #config.Data.splitting     = 'Automatic'
@@ -76,7 +71,8 @@ def main(input_datasets="crab-datasets.txt"):
         config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.3/'
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
-        if not isMC: config.Data.lumiMask = 'goldenJSON_2016.txt'
+        if not isMC: 
+            config.Data.lumiMask = 'goldenJSON_{0}.txt'.format(year)
 
         # Site
         config.Site.storageSite   = "T3_US_FNALLPC"
