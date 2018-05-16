@@ -33,6 +33,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_elIdFullInfoMap_Tight(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_Tight"))){
   //t_elIdFullInfoMap_HEEP(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_HEEP"))){
     m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
+    m_year = cfg.getParameter<int>("year");            // different attributes/JECs/etc.
 
     t_BEST_products.clear();
     for (const auto& name : m_BEST_variables){
@@ -415,6 +416,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_BEST_products[m_BEST_variables[i]] = dtmp;
     }
 
+    std::string userFloat_tau1 = (m_year==2016) ? "NjettinessAK8:tau1" : "ak8PFJetsCHSValueMap:NjettinessAK8CHSTau1";
+    std::string userFloat_tau2 = (m_year==2016) ? "NjettinessAK8:tau2" : "ak8PFJetsCHSValueMap:NjettinessAK8CHSTau2";
+    std::string userFloat_tau3 = (m_year==2016) ? "NjettinessAK8:tau3" : "ak8PFJetsCHSValueMap:NjettinessAK8CHSTau3";
+
     unsigned int nj(0);
     for (const auto& ljet : *m_ljets.product()){
         // Check jet
@@ -431,9 +436,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_mass.push_back(ljet.mass());
         m_ljet_area.push_back(ljet.jetArea());
 
-        m_ljet_tau1.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau1"));
-        m_ljet_tau2.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau2"));
-        m_ljet_tau3.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau3"));
+        m_ljet_tau1.push_back(ljet.userFloat(userFloat_tau1));
+        m_ljet_tau2.push_back(ljet.userFloat(userFloat_tau2));
+        m_ljet_tau3.push_back(ljet.userFloat(userFloat_tau3));
 
         // BESTProducer
         m_ljet_charge.push_back( m_BEST_products.at("q")[nj] );
@@ -509,13 +514,13 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_charge10.push_back( subjet1_q.at(1) );
 
 
-//        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
-//        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
+        double deepCSV0_b  = subjet0->bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV0_bb = subjet0->bDiscriminator("pfDeepCSVJetTags:probbb");
 
         m_ljet_subjet0_bdisc.push_back(  m_BEST_products["bDisc1"][nj] );
         m_ljet_subjet0_charge.push_back( m_BEST_products["qsubjet0"][nj] );
-        //m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
-        m_ljet_subjet0_deepCSV.push_back(subjet0->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
+        m_ljet_subjet0_deepCSV.push_back(deepCSV0_b+deepCSV0_bb);
+        //m_ljet_subjet0_deepCSV.push_back(subjet0->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet0_pt.push_back(   subjet0->pt() );
         m_ljet_subjet0_mass.push_back( subjet0->mass() );
         m_ljet_subjet0_charge3.push_back(subjet0_q.at(0) );   // jet charge with kappa=0.3
@@ -527,13 +532,13 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_subjet0_tau3.push_back( taus.at(2) );    // subjet0->userFloat("NjettinessAK8PFCHSSoftDropSubjets:tau3")
 
 
-//        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
-//        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
+        double deepCSV1_b  = subjet1->bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV1_bb = subjet1->bDiscriminator("pfDeepCSVJetTags:probbb");
 
         m_ljet_subjet1_bdisc.push_back(  m_BEST_products["bDisc2"][nj] );
         m_ljet_subjet1_charge.push_back( m_BEST_products["qsubjet1"][nj] );
-        //m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
-        m_ljet_subjet1_deepCSV.push_back(subjet1->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
+        m_ljet_subjet1_deepCSV.push_back(deepCSV1_b+deepCSV1_bb);
+        //m_ljet_subjet1_deepCSV.push_back(subjet1->bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
         m_ljet_subjet1_pt.push_back(   subjet1->pt() );
         m_ljet_subjet1_mass.push_back( subjet1->mass() );
         m_ljet_subjet1_charge3.push_back( subjet1_q.at(0) );  // jet charge with kappa=0.3
@@ -746,10 +751,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_mass.push_back( cjet.p4.M() );       // jet.mass()
 
         m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-        //double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
-        //double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
-        //m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
-        m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
+        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
+        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
+        //m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
 
         m_jet_area.push_back( jet.jetArea() );
         m_jet_uncorrPt.push_back( cjet.uncorrP4.Pt());   // same as jet.correctedP4(0)

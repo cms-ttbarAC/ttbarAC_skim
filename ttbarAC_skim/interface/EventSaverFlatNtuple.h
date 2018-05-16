@@ -143,6 +143,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     std::string m_name;
     bool m_isMC;
+    int m_year;
 
     std::string t_sampleName;
     std::string t_metadataFile;
