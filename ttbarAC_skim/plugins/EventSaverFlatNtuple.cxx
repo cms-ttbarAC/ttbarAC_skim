@@ -431,9 +431,9 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_ljet_mass.push_back(ljet.mass());
         m_ljet_area.push_back(ljet.jetArea());
 
-        m_ljet_tau1.push_back(ljet.userFloat("NjettinessAK8:tau1"));
-        m_ljet_tau2.push_back(ljet.userFloat("NjettinessAK8:tau2"));
-        m_ljet_tau3.push_back(ljet.userFloat("NjettinessAK8:tau3"));
+        m_ljet_tau1.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau1"));
+        m_ljet_tau2.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau2"));
+        m_ljet_tau3.push_back(ljet.userFloat("ak8PFJetsCHSValueMap:NjettinessAK8CHSTau3"));
 
         // BESTProducer
         m_ljet_charge.push_back( m_BEST_products.at("q")[nj] );
