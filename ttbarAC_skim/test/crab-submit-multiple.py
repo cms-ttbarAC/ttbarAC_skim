@@ -32,7 +32,7 @@ def main(input_datasets="crab-datasets.txt"):
 
     def submit(config):
         try:
-            crabCommand('submit', config=config)   # add 'dryrun=False' as argument for testing
+            crabCommand('submit', config=config, dryrun=True)   # add 'dryrun=False' as argument for testing
             print ' Executed crabCommand() '
         except HTTPException, hte:
             print ' ERROR :: Cannot execute command! '
@@ -63,7 +63,7 @@ def main(input_datasets="crab-datasets.txt"):
         config.JobType.pluginName  = 'Analysis'
         config.JobType.psetName    = 'runSkim.py'
         config.JobType.allowUndistributedCMSSW = True
-        config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt']
+        config.JobType.inputFiles = ['BEST_mlp.json','metadataFile.txt','JERDatabase','JECDatabase']
         if isMC:
             config.JobType.pyCfgParams = ['isMC=True','sampleName={0}'.format(primary_dataset)]
         else:
