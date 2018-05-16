@@ -14,14 +14,14 @@ cmsenv
 git cms-init
 ```
 
-Check out [BESTProducer](https://github.com/justinrpilot/BESTAnalysis) and other necessary packages:
+Check out [BESTProducer](https://github.com/cms-ttbarAC/BESTAnalysis.git) and other necessary packages:
 ```
-# VID
+# VID (Electron ID)
 git cms-addpkg RecoEgamma/ElectronIdentification
 git cms-addpkg PhysicsTools/SelectorUtils
-# BEST 
-git clone https://github.com/justinrpilot/BESTAnalysis -b 90x_prod
-# LWTNN
+# BEST (top vs qcd tagging)
+git clone https://github.com/cms-ttbarAC/BESTAnalysis.git -b 94X
+# LWTNN (running BEST in c++)
 mkdir lwtnn
 git clone https://github.com/demarley/lwtnn.git -b CMSSW_8_0_X-compatible lwtnn/lwtnn
 # Analysis code -- now linked with this package
@@ -59,6 +59,8 @@ This script will loop through the different datasets and submit crab jobs for ea
 _Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file!_
 
 ### Single Submission
+_The following method is not recommended.  Instead, if you want to only submit one sample, use the method described in "Multiple Submission" and fill your text file with only 1 dataset._
+
 Edit `crab_*.py` with a new dataset name to reflect the sample you are processing, e.g., `crab_SMttbar.py`.  
 Make sure to the output directory is pointed to `/store/group/lpctop/ttbarAC/ttbarAC_skim/`.  
 If you are processing data, modify the argument `config.JobType.pyCfgParams = ['isMC=True']` to `config.JobType.pyCfgParams = ['isMC=False']`.  
