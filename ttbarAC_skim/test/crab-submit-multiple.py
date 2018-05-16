@@ -32,7 +32,7 @@ def main(input_datasets="crab-datasets.txt"):
 
     def submit(config):
         try:
-            crabCommand('submit', config=config, dryrun=True)   # add 'dryrun=False' as argument for testing
+            crabCommand('submit', config=config, dryrun=False)   # add 'dryrun=False' as argument for testing
             print ' Executed crabCommand() '
         except HTTPException, hte:
             print ' ERROR :: Cannot execute command! '
@@ -70,8 +70,9 @@ def main(input_datasets="crab-datasets.txt"):
             config.JobType.pyCfgParams = ['isMC=False','sampleName={0}'.format(primary_dataset)]
 
         # Data
-        config.Data.splitting     = 'Automatic'
-        #config.Data.unitsPerJob   = 10 if isMC else 3
+        #config.Data.splitting     = 'Automatic'
+        config.Data.splitting     = 'FileBased'
+        config.Data.unitsPerJob   = 5 if isMC else 3
         config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.3/'
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
