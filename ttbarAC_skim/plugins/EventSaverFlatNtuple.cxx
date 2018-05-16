@@ -607,9 +607,22 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     for (size_t i=0, size=m_electrons->size(); i<size; ++i){   
         const auto el = m_electrons->ptrAt(i);          // easier if we use ptrs for the id
 
-        // selector: pt > 40.0 && abs(eta) < 2.4
-        if (el->pt() < 40. || std::abs(el->eta())>2.4) continue;
+        // ID
+        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];    // includes isolation requirment
+        vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
+        vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
 
+        // ID -- no isolation
+        // https://twiki.cern.ch/twiki/bin/view/Main/VIDTutorial2017#Performing_N_1_Studies
+        vid::CutFlowResult idLooseNoIso  = idLoose.getCutFlowResultMasking(7);   // 7 = GsfEleEffAreaPFIsoCut_0
+        vid::CutFlowResult idMediumNoIso = idMedium.getCutFlowResultMasking(7);
+        vid::CutFlowResult idTightNoIso  = idTight.getCutFlowResultMasking(7);
+
+        // selector: pt > 40.0 && abs(eta) < 2.4; require at least one of the IDs (no iso.) to fire
+        if (el->pt() < 40. || std::abs(el->eta())>2.4) continue;
+        if (!idLooseNoIso.cutFlowPassed() && !idMediumNoIso.cutFlowPassed() && !idTightNoIso.cutFlowPassed()) continue;
+
+        // save information
         m_el_pt.push_back( el->pt() );
         m_el_eta.push_back(el->eta() );
         m_el_phi.push_back(el->phi() );
@@ -618,26 +631,16 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_el_charge.push_back( el->charge() );
         //m_el_iso.push_back( (el->trackIso() + el->caloIso()) / el->pt() );
 
-        // ID
-        vid::CutFlowResult idLoose  = (*h_cutflow_elId_Loose)[el];    // includes isolation requirment
-        vid::CutFlowResult idMedium = (*h_cutflow_elId_Medium)[el];
-        vid::CutFlowResult idTight  = (*h_cutflow_elId_Tight)[el];
         m_el_ID_loose.push_back( idLoose.cutFlowPassed() );
         m_el_ID_medium.push_back(idMedium.cutFlowPassed() );
         m_el_ID_tight.push_back( idTight.cutFlowPassed() );
-//        m_el_ID_HEEP.push_back(  idHEEP.cutFlowPassed() );
-
-        // ID -- no isolation
-        // https://twiki.cern.ch/twiki/bin/view/Main/VIDTutorial2017#Performing_N_1_Studies
-        vid::CutFlowResult idLooseNoIso  = idLoose.getCutFlowResultMasking(7);   // 7 = GsfEleEffAreaPFIsoCut_0
-        vid::CutFlowResult idMediumNoIso = idMedium.getCutFlowResultMasking(7);
-        vid::CutFlowResult idTightNoIso  = idTight.getCutFlowResultMasking(7);
+        //m_el_ID_HEEP.push_back(  idHEEP.cutFlowPassed() );
 
         m_el_ID_looseNoIso.push_back( idLooseNoIso.cutFlowPassed() );
         m_el_ID_mediumNoIso.push_back(idMediumNoIso.cutFlowPassed() );
         m_el_ID_tightNoIso.push_back( idTightNoIso.cutFlowPassed() );
 
-        // selector: TightID (no iso); pt > 50.0; abs(eta) < 2.4
+        // lepton cleaning -- selector: TightID (no iso); pt > 50.0; abs(eta) < 2.4
         if (el->pt()>50. && std::abs(el->eta())<2.4 && idTightNoIso.cutFlowPassed() ){
             LeptonKey el_key;
             el_key.p4.SetPtEtaPhiE( el->pt(), el->eta(), el->phi(), el->energy() );
@@ -661,23 +664,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_muonKeys.clear();
 
     for (const auto& mu : *m_muons.product()){
-        m_mu_pt.push_back(  mu.pt() );
-        m_mu_eta.push_back( mu.eta() );
-        m_mu_phi.push_back( mu.phi() );
-        m_mu_e.push_back(   mu.energy() );
-        m_mu_charge.push_back( mu.charge() );
-
-        // ISO04
-        float chPt = mu.pfIsolationR04().sumChargedHadronPt;
-        float nhPt = mu.pfIsolationR04().sumNeutralHadronEt;
-        float phPt = mu.pfIsolationR04().sumPhotonEt;
-        float puPt = mu.pfIsolationR04().sumPUPt;
-        float iso04 = (chPt+TMath::Max(0.,nhPt+phPt-0.5*puPt))/mu.pt();
-        m_mu_iso.push_back( iso04 );
-
         // ID
         // https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideMuonIdRun2#Muon_Identification
-        m_mu_ID_loose.push_back( muon::isLooseMuon(mu) );
+        bool isLoose( muon::isLooseMuon(mu) );
+        bool isTight( muon::isTightMuon(mu,PV) );
 
         // Medium ID  -- 2016 data B-F vs G-H
         // https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2?rev=27#MediumID2016_to_be_used_with_Run
@@ -690,11 +680,29 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
                           mu.innerTrack()->validFraction() > 0.49 && 
                           muon::segmentCompatibility(mu) > (goodGlob ? 0.303 : 0.451); 
         bool isMediumMuon = (event.isRealData() && m_runNumber <= 278808) ? isMediumBF : isMedium;
+
+        if (!isLoose && !isMediumMuon && !isTight) continue;  // require at least 1 ID to fire
+
+        // save information
+        m_mu_pt.push_back(  mu.pt() );
+        m_mu_eta.push_back( mu.eta() );
+        m_mu_phi.push_back( mu.phi() );
+        m_mu_e.push_back(   mu.energy() );
+        m_mu_charge.push_back( mu.charge() );
+
+        // isolation "ISO04"
+        float chPt = mu.pfIsolationR04().sumChargedHadronPt;
+        float nhPt = mu.pfIsolationR04().sumNeutralHadronEt;
+        float phPt = mu.pfIsolationR04().sumPhotonEt;
+        float puPt = mu.pfIsolationR04().sumPUPt;
+        float iso04 = (chPt+TMath::Max(0.,nhPt+phPt-0.5*puPt))/mu.pt();
+        m_mu_iso.push_back( iso04 );
+
+        m_mu_ID_loose.push_back(  isLoose );
         m_mu_ID_medium.push_back( isMediumMuon );
+        m_mu_ID_tight.push_back(  isTight );
 
-        m_mu_ID_tight.push_back( muon::isTightMuon(mu,PV) );
-
-        // selector: MediumID (no iso); pt > 50.0; abs(eta) < 2.4
+        // lepton cleaning -- selector: MediumID (no iso); pt > 50.0; abs(eta) < 2.4
         if (mu.pt()>50. && std::abs(mu.eta())<2.4 && isMediumMuon ) {
             LeptonKey mu_key;
             mu_key.p4.SetPtEtaPhiE( mu.pt(), mu.eta(), mu.phi(), mu.energy() );
