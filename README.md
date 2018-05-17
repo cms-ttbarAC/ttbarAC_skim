@@ -14,20 +14,33 @@ cmsenv
 git cms-init
 ```
 
-Check out [BESTProducer](https://github.com/cms-ttbarAC/BESTAnalysis.git) and other necessary packages:
+Next, checkout [BESTProducer](https://github.com/cms-ttbarAC/BESTAnalysis.git) and other necessary packages.  
+There are two distinct sets of instructions depending on which dataset you will be processing.  These only differ for the EGamma dependencies:
+
 ```
+### 2016 ###
 # VID (Electron ID)
 git cms-addpkg RecoEgamma/ElectronIdentification
 git cms-addpkg PhysicsTools/SelectorUtils
+
+
+### 2017 ###
+# Updated Egamma IDs (creates RecoEgamma and PhysicsTools directories)
+# https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2
+git cms-merge-topic lsoffi:CMSSW_9_4_0_pre3_TnP
+
+
+### COMMON ###
+
 # BEST (top vs qcd tagging)
 git clone https://github.com/cms-ttbarAC/BESTAnalysis.git -b 94X
 # LWTNN (running BEST in c++)
 mkdir lwtnn
 git clone https://github.com/demarley/lwtnn.git -b CMSSW_8_0_X-compatible lwtnn/lwtnn
-# Analysis code -- now linked with this package
+
+# Analysis code -- now linked with this repository
 mkdir Analysis
 git clone https://github.com/cms-ttbarAC/CyMiniAna.git Analysis/CyMiniAna
-
 git clone https://github.com/cms-ttbarAC/ttbarAC_skim
 
 scram b -j8
@@ -52,11 +65,13 @@ There are two options for submitting crab jobs, (1) submit many jobs at once or 
 Write a text file that contains the datasets you would like to process, see `test/crab_datasets-data.txt` and `test/crab_datasets-mc.txt` as examples (or you can use these files).  
 Then, execute the script with your datsets text file as a command-line argument: 
 ```
-python crab-submit-multiple.py <datasets.txt>
+python crab-submit-multiple.py <datasets.txt> <year>
 ```
-If no command-line argument is given, a default file will be chosen.
+If no command-line argument is given, a default file & year will be chosen.
 This script will loop through the different datasets and submit crab jobs for each one.
-_Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file!_
+_Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file! Example:_
+`ttbar /TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/RunIISummer16MiniAODv2-PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM`
+_`ttbar` is the nickname, and `/TT.../MINIAODSIM` is the sample_
 
 ### Single Submission
 _The following method is not recommended.  Instead, if you want to only submit one sample, use the method described in "Multiple Submission" and fill your text file with only 1 dataset._
