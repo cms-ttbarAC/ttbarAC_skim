@@ -68,7 +68,7 @@ def main(input_datasets="crab-datasets.txt",year='2016'):
         #config.Data.splitting     = 'Automatic'
         config.Data.splitting     = 'FileBased'
         config.Data.unitsPerJob   = 5 if isMC else 3
-        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.3/'
+        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.4/'
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
         if not isMC: 
@@ -88,9 +88,13 @@ def main(input_datasets="crab-datasets.txt",year='2016'):
 
 
 if __name__=='__main__':
-    if len(sys.argv)>1:
-        main(sys.argv[1])    # pass datasets file as command line argument
-    else:
-        main("crab-datasets-test.txt")
+    try:
+        main(sys.argv[1],sys.argv[2])    # pass datasets file and year as command line arguments
+    except IndexError:
+        print " Not enough arguments! "
+        try: 
+            main(sys.argv[1])
+        except IndexError:
+            main("crab-datasets-test.txt")
 
 ## THE END ##
