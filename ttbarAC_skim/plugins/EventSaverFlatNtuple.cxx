@@ -34,6 +34,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   //t_elIdFullInfoMap_HEEP(consumes<edm::ValueMap<vid::CutFlowResult>>(cfg.getParameter<edm::InputTag>("elIdFullInfoMap_HEEP"))){
     m_isMC = cfg.getParameter<bool>("isMC");           // filling truth branches
     m_year = cfg.getParameter<int>("year");            // different attributes/JECs/etc.
+    m_analysisAK4Pt = 30.;                             // pT threshold for 'analysis-level' AK4
 
     t_BEST_products.clear();
     for (const auto& name : m_BEST_variables){
@@ -59,7 +60,7 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     m_hist_cutflow = fs->make<TH1D>( "cutflow","cutflow",3,0,3);
     m_hist_cutflow->GetXaxis()->SetBinLabel(1,"INITIAL");
     m_hist_cutflow->GetXaxis()->SetBinLabel(2,"PRIMARYVTX");
-    m_hist_cutflow->GetXaxis()->SetBinLabel(3,"AK8JETS");
+    m_hist_cutflow->GetXaxis()->SetBinLabel(3,"AK4JETS");
 
     // TH1D
     m_hist_truth_dy = fs->make<TH1D>( "truth_dy","truth_dy",2000,-10,10);  // (unbounded, likely between -5,5)
@@ -117,8 +118,16 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
     //    Summer16_23Sep2016 + BCDV4_DATA || EFV4_DATA || GV4_DATA || HV4_DATA || V4_MC
     m_ak4_jec.clear();
     std::string JECpathbase("JECDatabase/textFiles/");
-    std::string JECdate("Summer16_23Sep2016");
-    std::vector<std::string> eras = {"V4_MC","BCDV4_DATA","EFV4_DATA","GV4_DATA","HV4_DATA"};
+    // 2016
+    std::string JECdate2016("Summer16_23Sep2016");
+    std::vector<std::string> eras2016 = {"V4_MC","BCDV4_DATA","EFV4_DATA","GV4_DATA","HV4_DATA"};
+    // 2017
+    std::string JECdate2017("Fall17_17Nov2017");
+    std::vector<std::string> eras2017 = {"_V6_MC","B_V6_DATA","C_V6_DATA","D_V6_DATA","E_V6_DATA","F_V6_DATA"};
+
+    std::string JECdate = (m_year==2016) ? JECdate2016 : JECdate2017;
+    std::vector<std::string> eras = (m_year==2016) ? eras2016 : eras2017;
+
     for (const auto& era : eras){
         std::vector<JetCorrectorParameters> vPar;  
 
@@ -142,8 +151,17 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
         m_ak4_jec[era] = boost::shared_ptr<FactorizedJetCorrector> ( new FactorizedJetCorrector(vPar) );
     } // end loop over data eras and MC
 
-    std::string ak4jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK4PFchs.txt");
-    std::string ak8jersfFile("JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK8PFchs.txt");
+    std::string ak4jersfFile("");
+    std::string ak8jersfFile("");
+
+    if (m_year==2016){
+        ak4jersfFile = "JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK4PFchs.txt";
+        ak8jersfFile = "JERDatabase/textFiles/Summer16_25nsV1_MC_SF_AK8PFchs.txt";
+    }
+    else{
+        ak4jersfFile = "JERDatabase/textFiles/Fall17_25nsV1_MC_SF_AK4PFchs.txt";
+        ak8jersfFile = "JERDatabase/textFiles/Fall17_25nsV1_MC_SF_AK8PFchs.txt";
+    }
 
     m_resolution_ak4sf = JME::JetResolutionScaleFactor(ak4jersfFile);
     m_resolution_ak8sf = JME::JetResolutionScaleFactor(ak8jersfFile);
@@ -563,10 +581,6 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         nj++;
     } // end loop over AK8
 
-    if (m_ljet_pt.size()<1)
-        return;
-    m_hist_cutflow->Fill(2.5);    // AK8Jets
-
 
     // Truth AK8
     m_truth_ljet_pt.clear();
@@ -733,30 +747,45 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     m_jet_jerSF.clear();
     m_jet_jerSF_UP.clear();
     m_jet_jerSF_DOWN.clear();
-
     m_HTAK4 = 0;
 
+    unsigned int nGoodJets(0);                     // number of jets that can be used in the analysis
+    std::vector<CleanJet> cleanJets;               // jets with lepton-cleaning applied
     for (const auto& jet : *m_jets.product()){
         // lepton-cleaning
         // look at mediumID muons & tightID electrons (both w/o isolation)
         // re-check the 'loose' requirement
         CleanJet cjet = leptonJetCleaning( jet );
 
-        if (!passAK4(cjet)) continue;                       // check kinematics (cjet should be the same as jet if not cleaned)
+        if (!passAK4(cjet)) continue;              // check kinematics (cjet should be the same as jet if not cleaned)
 
+        cjet.bdisc   = jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags");
+        cjet.deepCSV = jet.bDiscriminator("pfDeepCSVJetTags:probb") + jet.bDiscriminator("pfDeepCSVJetTags:probbb");
+        cjet.area    = jet.jetArea();
+
+        if (cjet.p4.Pt()>m_analysisAK4Pt) nGoodJets++;          // eta and ID cut handled by passAK4()
+
+        cleanJets.push_back( cjet );               // save the lepton-cleaned jets
+    }
+
+    // Need at least 2 'analysis-level' AK4 (pT>30, |n|<2.4, isLoose)
+    // -- keep AK4 down to pT=15 GeV for 2D isolation cut on leptons
+    if (nGoodJets<2) return;
+    m_hist_cutflow->Fill(2.5);    // AK4Jets -- remove requirement that AK8 jet exists and apply this to AK4 instead
+
+    // save the AK4 jets
+    for (const auto& cjet : cleanJets){
         // save variables -- if the jet isn't cleaned, the cleanJet.p4 matches the jet 4-vector
-        m_jet_pt.push_back(   cjet.p4.Pt() );      // jet.pt()
+        float jet_pt = cjet.p4.Pt();
+        m_jet_pt.push_back(   jet_pt );            // jet.pt()
         m_jet_eta.push_back(  cjet.p4.Eta() );     // jet.eta()
         m_jet_phi.push_back(  cjet.p4.Phi() );     // jet.phi()
         m_jet_mass.push_back( cjet.p4.M() );       // jet.mass()
 
-        m_jet_bdisc.push_back(jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags") );
-        double deepCSV_b  = jet.bDiscriminator("pfDeepCSVJetTags:probb");
-        double deepCSV_bb = jet.bDiscriminator("pfDeepCSVJetTags:probbb");
-        m_jet_deepCSV.push_back( deepCSV_b+deepCSV_bb );   // b+bb
-        //m_jet_deepCSV.push_back( jet.bDiscriminator("pfDeepCSVDiscriminatorsJetTags:BvsAll") );
+        m_jet_bdisc.push_back(    cjet.bdisc );
+        m_jet_deepCSV.push_back(  cjet.deepCSV );
 
-        m_jet_area.push_back( jet.jetArea() );
+        m_jet_area.push_back(     cjet.area );
         m_jet_uncorrPt.push_back( cjet.uncorrP4.Pt());   // same as jet.correctedP4(0)
         m_jet_uncorrE.push_back(  cjet.uncorrP4.E());    // same as jet.correctedP4(0)
 
@@ -765,7 +794,7 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         m_jet_jerSF_UP.push_back( m_resolution_ak4sf.getScaleFactor(parameters, Variation::UP) );
         m_jet_jerSF_DOWN.push_back( m_resolution_ak4sf.getScaleFactor(parameters, Variation::DOWN) );
 
-        m_HTAK4 += cjet.p4.Pt();
+        if (jet_pt>m_analysisAK4Pt) m_HTAK4 += jet_pt;
     }
 
     // Fill output tree
@@ -961,7 +990,10 @@ bool EventSaverFlatNtuple::checkTopDecay(const reco::Candidate& daughter) const{
 
 
 bool EventSaverFlatNtuple::passAK4( const CleanJet& cjet ) const {
-    /* Check if small-R jet passes basic cuts (after cleaning!) */
+    /* Check if small-R jet passes basic cuts (after cleaning!) 
+       - Keep AK4 down to 15 GeV for 2D lepton isolation
+       - pT>30 GeV for analysis (may raise this later)
+    */
     bool pass = (cjet.isLoose && cjet.p4.Pt()>15 && std::abs( cjet.p4.Eta() )<2.4);
     return pass;
 }
@@ -971,7 +1003,6 @@ bool EventSaverFlatNtuple::passAK8( const pat::Jet& j, const float& SDmass) cons
     /* Check if large-R jet passes basic cuts */
     bool goodJet = jetID(j);
     bool pass    = (j.pt() > 350. && goodJet && SDmass>20);
- 
     return pass;
 }
 
@@ -1110,7 +1141,9 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) {
 
     CleanJet cleanJet;
     cleanJet.p4.SetPtEtaPhiE( j.pt(), j.eta(), j.phi(), j.energy() );  // initialize to nominal jet
-    cleanJet.uncorrP4.SetPtEtaPhiE( uncorrJet.pt(), uncorrJet.eta(), uncorrJet.phi(), uncorrJet.energy() );     // set to 4-vector WITHOUT JECs
+
+    cleanJet.uncorrPt = uncorrJet.pt();
+    cleanJet.uncorrE  = uncorrJet.energy();
     cleanJet.isLoose  = jetID(j);                 // nominal jet ID
 
     // save the lepton p4 if it is used in cleaning for MET re-calculation
@@ -1199,16 +1232,29 @@ void EventSaverFlatNtuple::applyJEC( CleanJet& j, const float& area ) const {
         > IOV EF:  [276831,278801]   corresponds to Summer16_23Sep2016EFV4_DATA (For Runs E/early F)
         > IOV G:   [278802,280385]   corresponds to Summer16_23Sep2016GV4_DATA (For Runs lateF/G)
         > IOV H:   [280919,Infinity] corresponds to Summer16_23Sep2016HV4_DATA (For Run H)
+       2017 run numbers: https://twiki.cern.ch/twiki/bin/view/CMS/PdmV2017Analysis#DATA (accessed 16 May 2018)
+        > IOV B: [297020,299329] Fall17_17Nov2017B_V6_DATA
+        > IOV C: [299337,302029] Fall17_17Nov2017C_V6_DATA
+        > IOV D: [302030,303434] Fall17_17Nov2017D_V6_DATA
+        > IOV E: [303435,304826] Fall17_17Nov2017E_V6_DATA
+        > IOV F: [304911,306462] Fall17_17Nov2017F_V6_DATA
     */
     std::string key("");
-    if (m_isMC) key = "V4_MC";
-    else if (m_runNumber>1 && m_runNumber<=276811) key = "BCDV4_DATA";
+    if (m_isMC) key = (m_year==2016) ? "V4_MC" : "_V6_MC";
+    // 2016
+    else if (m_runNumber<=276811) key = "BCDV4_DATA";
     else if (m_runNumber>=276831 && m_runNumber<=278801) key = "EFV4_DATA";
     else if (m_runNumber>=278802 && m_runNumber<=280385) key = "GV4_DATA";
-    else if (m_runNumber>=280919) key = "HV4_DATA";
+    else if (m_runNumber>=280919 && m_runNumber< 297020) key = "HV4_DATA";
+    // 2017
+    else if (m_runNumber>=297020 && m_runNumber<=299329) key = "B_V6_DATA";
+    else if (m_runNumber>=299337 && m_runNumber<=302029) key = "C_V6_DATA";
+    else if (m_runNumber>=302030 && m_runNumber<=303434) key = "D_V6_DATA";
+    else if (m_runNumber>=303435 && m_runNumber<=304826) key = "E_V6_DATA";
+    else if (m_runNumber>=304911 && m_runNumber<=306462) key = "F_V6_DATA";
 
     m_ak4_jec.at(key)->setJetPt(  j.uncorrP4.Pt() );
-    m_ak4_jec.at(key)->setJetEta( j.uncorrP4.Eta() );
+    m_ak4_jec.at(key)->setJetEta( j.uncorrP4.Eta() );     // same Eta as corrected jet, I think
     m_ak4_jec.at(key)->setJetE(   j.uncorrP4.Energy() );
     m_ak4_jec.at(key)->setJetA(area );
     m_ak4_jec.at(key)->setRho( m_rho );

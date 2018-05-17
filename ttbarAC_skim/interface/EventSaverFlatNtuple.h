@@ -79,9 +79,7 @@ struct LeptonKey {
     std::vector<int> keys;
 };
 
-
-struct CleanJet {
-    TLorentzVector p4;         // jet with JECs re-applied (if necessary, else the nominal jet p4)
+struct CleanJet : Jet {
     TLorentzVector uncorrP4;   // jet without JECs
     TLorentzVector originalP4; // nominal jet with JECs before cleaning (saved to update MET)
     bool isLoose;              // ID of jet (same as nominal if no cleaning)
@@ -144,6 +142,7 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
     std::string m_name;
     bool m_isMC;
     int m_year;
+    float m_analysisAK4Pt;
 
     std::string t_sampleName;
     std::string t_metadataFile;
