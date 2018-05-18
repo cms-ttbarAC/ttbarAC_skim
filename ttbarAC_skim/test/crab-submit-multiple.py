@@ -92,7 +92,7 @@ if __name__=='__main__':
         main(sys.argv[1],sys.argv[2])    # pass datasets file and year as command line arguments
     except IndexError:
         print " Not enough arguments! "
-        try: 
+        try:
             main(sys.argv[1])
         except IndexError:
             main("crab-datasets-test.txt")
