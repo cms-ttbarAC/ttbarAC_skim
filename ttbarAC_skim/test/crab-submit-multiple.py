@@ -19,7 +19,7 @@ import Analysis.CyMiniAna.util as util
 
 
 
-def main(input_datasets="crab-datasets.txt",year='2016'):
+def main(input_datasets="crab-datasets.txt",year=2016):
 
     from CRABClient.UserUtilities import config
     config = config()
@@ -68,7 +68,7 @@ def main(input_datasets="crab-datasets.txt",year='2016'):
         #config.Data.splitting     = 'Automatic'
         config.Data.splitting     = 'FileBased'
         config.Data.unitsPerJob   = 5 if isMC else 3
-        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.4/'
+        config.Data.outLFNDirBase = '/store/group/lpctop/ttbarAC/ttbarAC_skim_v0.4/'  #'/store/group/lpctlbsm/wprime-qQ/ttbarAC_skim_v0.4' 
         config.Data.publication   = False
         config.Data.inputDataset  = dataset
         if not isMC: 

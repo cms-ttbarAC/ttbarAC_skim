@@ -38,7 +38,7 @@ options.register('sampleName',"",
     VarParsing.multiplicity.singleton,
     VarParsing.varType.string,
     "Name of simulated/real data sample" )
-options.register('year','2016',
+options.register('year',2016,
     VarParsing.multiplicity.singleton,
     VarParsing.varType.int,
     "Year of the simulated/real data sample" )
