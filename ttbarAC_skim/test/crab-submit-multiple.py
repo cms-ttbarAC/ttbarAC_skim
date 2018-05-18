@@ -19,7 +19,7 @@ import Analysis.CyMiniAna.util as util
 
 
 
-def main(input_datasets="crab-datasets.txt",year='2016'):
+def main(input_datasets="crab-datasets.txt",year=2016):
 
     from CRABClient.UserUtilities import config
     config = config()
