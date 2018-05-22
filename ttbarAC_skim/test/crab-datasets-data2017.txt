@@ -1,0 +1,12 @@
+# e+jets (2017)
+SingleElectronB2017 /SingleElectron/Run2017B-31Mar2018-v1/MINIAOD
+SingleElectronC2017 /SingleElectron/Run2017C-31Mar2018-v1/MINIAOD
+SingleElectronD2017 /SingleElectron/Run2017D-31Mar2018-v1/MINIAOD
+SingleElectronE2017 /SingleElectron/Run2017E-31Mar2018-v1/MINIAOD
+SingleElectronF2017 /SingleElectron/Run2017F-31Mar2018-v1/MINIAOD
+# mu+jets (2017)
+#SingleMuonB2017 /SingleMuon/Run2017B-31Mar2018-v1/MINIAOD
+SingleMuonC2017 /SingleMuon/Run2017C-31Mar2018-v1/MINIAOD
+SingleMuonD2017 /SingleMuon/Run2017D-31Mar2018-v1/MINIAOD
+SingleMuonE2017 /SingleMuon/Run2017E-31Mar2018-v1/MINIAOD
+SingleMuonF2017 /SingleMuon/Run2017F-31Mar2018-v1/MINIAOD
