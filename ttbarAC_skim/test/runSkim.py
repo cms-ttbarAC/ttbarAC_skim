@@ -128,11 +128,11 @@ updateJetCollection(
       'pfDeepCSVJetTags:probudsg',
       ] ## to add discriminators
 )
-"""
 process.selectedMET = cms.EDFilter('PATMETSelector',
     src = cms.InputTag('slimmedMETs'),
     cut = cms.string('pt > -999.9'),
 )
+"""
 
 ## GENERATOR PARTICLES
 process.selectedGenParticles = cms.EDProducer("GenParticlePruner",
@@ -193,12 +193,12 @@ process.dump=cms.EDAnalyzer('EventContentAnalyzer')
 
 ## PROCESS
 #  -- 'process.selectedElectrons*' removed -- need original collection to use VID
+#  -- 'process.selectedMET*' removed -- just use slimmedMETs
 if options.isMC:
     process.p = cms.Path(
         process.BESTProducer*
         process.selectedMuons*
         process.selectedAK4Jets*
-        process.selectedMET*
         process.selectedGenParticles*
         process.egmGsfElectronIDSequence*
         process.tree
@@ -208,7 +208,6 @@ else:
         process.BESTProducer*
         process.selectedMuons*
         process.selectedAK4Jets*
-        process.selectedMET*
         process.egmGsfElectronIDSequence*
         process.tree
     )
