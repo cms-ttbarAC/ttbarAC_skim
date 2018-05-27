@@ -21,7 +21,8 @@ EventSaverFlatNtuple::EventSaverFlatNtuple( const ParameterSet & cfg ) :
   t_electrons(consumes<edm::View<pat::Electron>>(edm::InputTag("slimmedElectrons","",""))),
   t_jets(consumes<pat::JetCollection>(edm::InputTag("selectedAK4Jets", "", "ttbarACskim"))),
   t_ljets(consumes<pat::JetCollection>(edm::InputTag("BESTProducer", "savedJets", "ttbarACskim"))),
-  t_met(consumes<pat::METCollection>(edm::InputTag("selectedMET", "", "ttbarACskim"))),
+//  t_met(consumes<pat::METCollection>(edm::InputTag("selectedMET", "", "ttbarACskim"))),
+  t_met(consumes<pat::METCollection>(edm::InputTag("slimmedMETs", "", ""))),
   t_rho(consumes<double>(edm::InputTag("fixedGridRhoFastjetAll"))),
   t_vertices(consumes<std::vector<reco::Vertex> >(edm::InputTag("offlineSlimmedPrimaryVertices"))),
   t_pileup(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("slimmedAddPileupInfo"))),
@@ -373,9 +374,11 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     }
 
     // Missing Transverse Momentum
-    m_met_met = (*m_met.product())[0].pt();
-    m_met_phi = (*m_met.product())[0].phi();
-
+    const pat::MET &met = m_met->front();
+    m_met_met = met.pt();
+    m_met_phi = met.phi();
+    //m_met_met = (*m_met.product())[0].pt();
+    //m_met_phi = (*m_met.product())[0].phi();
 
     // AK8 jets
     m_ljet_pt.clear();
@@ -1137,13 +1140,14 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) {
        > If any of the lepton keys are in the AK4, 
          subtract the lepton four vector from the AK4
     */
-    reco::Candidate::LorentzVector uncorrJet = j.correctedP4(0);
-
     CleanJet cleanJet;
     cleanJet.p4.SetPtEtaPhiE( j.pt(), j.eta(), j.phi(), j.energy() );  // initialize to nominal jet
 
+    reco::Candidate::LorentzVector uncorrJet = j.correctedP4(0);
     cleanJet.uncorrPt = uncorrJet.pt();
     cleanJet.uncorrE  = uncorrJet.energy();
+    cleanJet.uncorrP4.SetPtEtaPhiE( uncorrJet.pt(), uncorrJet.eta(), uncorrJet.phi(), uncorrJet.energy());
+
     cleanJet.isLoose  = jetID(j);                 // nominal jet ID
 
     // save the lepton p4 if it is used in cleaning for MET re-calculation
@@ -1209,15 +1213,22 @@ CleanJet EventSaverFlatNtuple::leptonJetCleaning( const pat::Jet& j ) {
 
 
 void EventSaverFlatNtuple::updateMET( const CleanJet& j, const std::vector<TLorentzVector>& leptons4cleaning ){
-    /* Update the MET based on lepton-jet cleaning */
+    /* Update the MET based on lepton-jet cleaning
+       Followed examples: https://github.com/eminizer/Reconstructor/blob/master/python/reconstructor.py
+    */
     TLorentzVector met;
-    met.SetPtEtaPhiE( m_met_met, 0., m_met_phi, 0.);
+    met.SetPtEtaPhiM( m_met_met, 0., m_met_phi, 0.);
 
     met += j.originalP4;
     met -= j.p4;
 
-    for (const auto& l : leptons4cleaning)
+    for (const auto& l : leptons4cleaning){
         met -= l;
+    }
+
+    // reset MET eta and mass
+    met.SetPz(0.);
+    met.SetE(met.Vect().Mag());
 
     m_met_met = met.Pt();    // new corrected result
     m_met_phi = met.Phi();   // new corrected result

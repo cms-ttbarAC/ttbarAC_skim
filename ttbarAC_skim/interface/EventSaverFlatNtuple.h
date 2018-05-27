@@ -429,6 +429,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
         "Flag_EcalDeadCellTriggerPrimitiveFilter",
         "Flag_goodVertices",
         "Flag_eeBadScFilter",
+        "Flag_BadPFMuonFilter",
+        "Flag_BadChargedCandidateFilter",
         "Flag_globalTightHalo2016Filter" // (data?)
     };
 
