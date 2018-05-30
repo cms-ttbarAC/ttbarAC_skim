@@ -69,9 +69,15 @@ python crab-submit-multiple.py <datasets.txt> <year>
 ```
 If no command-line argument is given, a default file & year will be chosen.
 This script will loop through the different datasets and submit crab jobs for each one.
-_Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file! Example:_
-`ttbar /TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/RunIISummer16MiniAODv2-PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM`
-_`ttbar` is the nickname, and `/TT.../MINIAODSIM` is the sample_
+
+_Note: the text file needs to be written such that each sample has a 'nickname' that can be used to create the crab directory.  The example text files include this structure -- replicate it if you write your own file!_  
+Example: filename = "example.txt"
+```
+ttbar /TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/RunIISummer16MiniAODv2-PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM`
+```
+where `ttbar` is the nickname, and `/TT.../MINIAODSIM` is the sample.  
+Then, the jobs would be submitted as:  
+`python crab-submit-multiple.py example.txt 2016`
 
 ### Single Submission
 _The following method is not recommended.  Instead, if you want to only submit one sample, use the method described in "Multiple Submission" and fill your text file with only 1 dataset._
