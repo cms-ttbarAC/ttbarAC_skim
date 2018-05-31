@@ -336,6 +336,8 @@ class EventSaverFlatNtuple : public edm::one::EDAnalyzer<edm::one::SharedResourc
 
     float m_met_met;
     float m_met_phi;
+    float m_met_met_original;
+    float m_met_phi_original;
     float m_HTAK8;
     float m_HTAK4;
     float m_HT_branch;

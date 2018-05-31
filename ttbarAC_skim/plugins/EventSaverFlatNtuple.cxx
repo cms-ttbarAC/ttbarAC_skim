@@ -377,6 +377,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
     const pat::MET &met = m_met->front();
     m_met_met = met.pt();
     m_met_phi = met.phi();
+    m_met_met_original = met.pt();
+    m_met_phi_original = met.phi();
+
+
     //m_met_met = (*m_met.product())[0].pt();
     //m_met_phi = (*m_met.product())[0].phi();
 
@@ -958,6 +962,9 @@ void EventSaverFlatNtuple::initialize_branches(){
     // MET, HT
     m_ttree->Branch("METpt",  &m_met_met, "METpt/F");  // float
     m_ttree->Branch("METphi", &m_met_phi, "METphi/F"); // float
+    m_ttree->Branch("METpt_original",  &m_met_met_original, "METpt_original/F");  // float
+    m_ttree->Branch("METphi_original", &m_met_phi_original, "METphi_original/F"); // float
+
     m_ttree->Branch("HTak8",  &m_HTAK8,   "HTak8/F");  // float
     m_ttree->Branch("HTak4",  &m_HTAK4,   "HTak4/F");  // float
 
