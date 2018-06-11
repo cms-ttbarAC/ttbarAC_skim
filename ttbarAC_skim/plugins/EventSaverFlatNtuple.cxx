@@ -588,6 +588,10 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
         nj++;
     } // end loop over AK8
 
+    // only for QCD samples:
+    if (m_ljet_pt.size()<2) return;
+    m_hist_cutflow->Fill(2.5);      // AK8Jets -- need this for QCD or else the samples are too large
+
 
     // Truth AK8
     m_truth_ljet_pt.clear();
@@ -777,8 +781,8 @@ void EventSaverFlatNtuple::analyze( const edm::Event& event, const edm::EventSet
 
     // Need at least 2 'analysis-level' AK4 (pT>30, |n|<2.4, isLoose)
     // -- keep AK4 down to pT=15 GeV for 2D isolation cut on leptons
-    if (nGoodJets<2) return;
-    m_hist_cutflow->Fill(2.5);    // AK4Jets -- remove requirement that AK8 jet exists and apply this to AK4 instead
+    //if (nGoodJets<2) return;
+    //m_hist_cutflow->Fill(2.5);    // AK4Jets -- remove requirement that AK8 jet exists and apply this to AK4 instead
 
     // save the AK4 jets
     for (const auto& cjet : cleanJets){
